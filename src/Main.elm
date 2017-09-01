@@ -2,13 +2,12 @@ module Main exposing (..)
 
 import Html exposing (..)
 import Html.Attributes as Attr exposing (..)
+import Html.CssHelpers exposing (withNamespace)
 import Html.Events exposing (onClick, onInput, onSubmit, onWithOptions)
-import Html.Lazy as Lazy
 import Http
 import Icons as Icon
 import Json.Decode as Decode exposing (..)
 import Navigation exposing (Location)
-import Task
 import Types exposing (..)
 import UrlParser as Url exposing (..)
 
@@ -44,7 +43,7 @@ checkRequest route =
             ( requestSearchResults query, query )
 
         Page id ->
-            ( getCurrentPage id, "" )
+            ( requestPage id, "" )
 
         _ ->
             ( Cmd.none, "" )
@@ -111,7 +110,7 @@ view model =
 viewHeader : String -> Html Msg
 viewHeader query =
     header []
-        [ h1 [] [ text "ELM SPA DEMO" ]
+        [ a [ href "/", onClickPreventDefault "/" ] [ h1 [] [ text "ELM SPA DEMO" ] ]
         , Html.form [ onSubmit (NewUrl ("/search/?q=" ++ query)) ]
             [ input [ onInput EnterQuery, Attr.value query, placeholder "Search" ] []
             , Icon.search
@@ -126,13 +125,13 @@ viewSearch model =
             div [] []
 
         Loading ->
-            div [] []
+            section [ class [ SearchView ] ] [ text "loading" ]
 
         Failure e ->
-            div [] []
+            section [ class [ SearchView ] ] [ text <| toString e ]
 
         Success a ->
-            section [] [ ul [] (List.map viewSearchResult a) ]
+            section [ class [ SearchView ] ] [ ul [] (List.map viewSearchResult a) ]
 
 
 viewSearchResult : Resource -> Html Msg
@@ -141,8 +140,8 @@ viewSearchResult { title, id, imageUrl, category } =
         url =
             "/page/" ++ toString id
     in
-    li []
-        [ a [ href url, onClickPreventDefault <| NewUrl url ]
+    li [ class [ SearchViewResult ] ]
+        [ a [ href url, onClickPreventDefault url ]
             [ img [ src <| Maybe.withDefault "" imageUrl ] []
             , h3 [] [ text <| Maybe.withDefault "No title" title ]
             ]
@@ -176,25 +175,6 @@ viewPageContent { title, id, imageUrl, category } =
 
 
 
---HELPER FUNCTIONS
-
-
-parseLocation : Location -> Route
-parseLocation =
-    Url.parsePath route >> Maybe.withDefault Home
-
-
-onClickPreventDefault : Msg -> Attribute Msg
-onClickPreventDefault x =
-    onWithOptions
-        "click"
-        { preventDefault = True
-        , stopPropagation = False
-        }
-        (Decode.succeed x)
-
-
-
 -- ROUTING
 
 
@@ -221,8 +201,8 @@ requestSearchResults query =
         |> Http.send GotSearchResults
 
 
-getCurrentPage : String -> Cmd Msg
-getCurrentPage id =
+requestPage : String -> Cmd Msg
+requestPage id =
     let
         url =
             "https://www.entoen.nu/api/base/export?id=" ++ id
@@ -268,3 +248,26 @@ pageDecoder =
         (Decode.at [ "id" ] Decode.int)
         (Decode.maybe <| Decode.at [ "preview_url" ] Decode.string)
         (Decode.at [ "rsc", "category" ] Decode.string |> Decode.map List.singleton)
+
+
+
+--HELPER FUNCTIONS
+
+
+parseLocation : Location -> Route
+parseLocation =
+    Url.parsePath route >> Maybe.withDefault Home
+
+
+onClickPreventDefault : String -> Attribute Msg
+onClickPreventDefault urlPath =
+    onWithOptions
+        "click"
+        { preventDefault = True
+        , stopPropagation = False
+        }
+        (Decode.succeed <| NewUrl urlPath)
+
+
+{ class } =
+    Html.CssHelpers.withNamespace ""

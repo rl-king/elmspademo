@@ -46,3 +46,9 @@ type RemoteData e a
     | Loading
     | Failure e
     | Success a
+
+
+type CssClasses
+    = PageView
+    | SearchView
+    | SearchViewResult

@@ -4,7 +4,7 @@ import Css exposing (..)
 import Css.Elements as E
 import Css.File
 import ModularScale
-import Types
+import Types exposing (..)
 
 
 port files : Css.File.CssFileStructure -> Cmd msg
@@ -28,6 +28,7 @@ css =
             , inputs
             , headers
             , containers
+            , searchView
             ]
 
 
@@ -37,7 +38,16 @@ css =
 
 typography : List Css.Snippet
 typography =
-    []
+    [ E.a
+        [ color (mono B1)
+        , textDecoration none
+        ]
+    , E.ul
+        [ padding zero
+        , margin zero
+        , listStyle none
+        ]
+    ]
 
 
 
@@ -46,7 +56,11 @@ typography =
 
 headers : List Css.Snippet
 headers =
-    []
+    [ E.header
+        [ displayFlex
+        , backgroundColor (mono W2)
+        ]
+    ]
 
 
 
@@ -55,12 +69,34 @@ headers =
 
 containers : List Css.Snippet
 containers =
-    []
+    [ E.body
+        [ margin zero
+        , padding zero
+        , fontFamilies sans
+        ]
+    ]
 
 
-searchResults : List Css.Snippet
-searchResults =
-    []
+searchView : List Css.Snippet
+searchView =
+    [ class SearchView
+        [ padding (ms 3)
+        , descendants
+            [ E.ul
+                [ displayFlex
+                , flexWrap wrap
+                , justifyContent spaceBetween
+                ]
+            ]
+        ]
+    , class SearchViewResult
+        [ width (pct 17.5) ]
+    , E.img
+        [ width (pct 100)
+        , minHeight (ms 4)
+        , backgroundColor (mono W3)
+        ]
+    ]
 
 
 pageView : List Css.Snippet
