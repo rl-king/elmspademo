@@ -1,13 +1,14 @@
+const autoprefixer = require('autoprefixer');
+const chalk = require('chalk');
+const merge = require('webpack-merge');
 const path = require('path');
 const webpack = require('webpack');
-const merge = require('webpack-merge');
-const HtmlWebpackPlugin = require('html-webpack-plugin');
-const autoprefixer = require('autoprefixer');
-const ExtractTextPlugin = require('extract-text-webpack-plugin');
-const CopyWebpackPlugin = require('copy-webpack-plugin');
-const WebpackNotifierPlugin = require('webpack-notifier');
-const OptimizeCssAssetsPlugin = require('optimize-css-assets-webpack-plugin');
 
+const CopyWebpackPlugin = require('copy-webpack-plugin');
+const ExtractTextPlugin = require('extract-text-webpack-plugin');
+const HtmlWebpackPlugin = require('html-webpack-plugin');
+const OptimizeCssAssetsPlugin = require('optimize-css-assets-webpack-plugin');
+const WebpackNotifierPlugin = require('webpack-notifier');
 
 const prod = 'production';
 const dev = 'development';
@@ -20,7 +21,7 @@ const entryPath = path.join(__dirname, 'src/init.js');
 const outputPath = path.join(__dirname, 'dist');
 const outputFilename = isProd ? '[name]-[hash].js' : '[name].js'
 
-console.log('Building for ' + TARGET_ENV);
+console.log(chalk.yellowBright.underline.bold('Starting '+ TARGET_ENV + ' mode\n'));
 
 var commonConfig = {
     output: {
