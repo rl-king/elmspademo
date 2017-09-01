@@ -32,6 +32,13 @@ type Msg
     | UrlChange Location
     | EnterQuery String
     | GotSearchResults (Result Http.Error (List Resource))
+    | GotPageWithEdges (Result Http.Error Resource)
+
+
+type Route
+    = Home
+    | Search (Maybe String)
+    | Page String
 
 
 type RemoteData e a
@@ -39,9 +46,3 @@ type RemoteData e a
     | Loading
     | Failure e
     | Success a
-
-
-type Route
-    = Home
-    | Search (Maybe String)
-    | Page String

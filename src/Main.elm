@@ -2,7 +2,7 @@ module Main exposing (..)
 
 import Html exposing (..)
 import Html.Attributes as Attr exposing (..)
-import Html.Events exposing (onClick, onInput, onSubmit)
+import Html.Events exposing (onClick, onInput, onSubmit, onWithOptions)
 import Html.Lazy as Lazy
 import Http
 import Icons as Icon
@@ -27,7 +27,7 @@ init : Navigation.Location -> ( Model, Cmd Msg )
 init location =
     let
         ( initCmd, initSearchQuery ) =
-            initRequests (parseLocation location)
+            checkRequest (parseLocation location)
     in
     { route = parseLocation location
     , searchQuery = initSearchQuery
@@ -37,14 +37,14 @@ init location =
         ! [ initCmd ]
 
 
-initRequests : Route -> ( Cmd Msg, String )
-initRequests route =
+checkRequest : Route -> ( Cmd Msg, String )
+checkRequest route =
     case route of
-        Search (Just x) ->
-            ( requestSearchResults x, x )
+        Search (Just query) ->
+            ( requestSearchResults query, query )
 
-        Page x ->
-            ( Cmd.none, "" )
+        Page id ->
+            ( getCurrentPage id, "" )
 
         _ ->
             ( Cmd.none, "" )
@@ -61,7 +61,12 @@ update msg model =
             model ! [ Navigation.newUrl url ]
 
         UrlChange location ->
-            { model | route = parseLocation location } ! []
+            { model
+                | route = parseLocation location
+                , searchResults = NotAsked
+                , currentPage = NotAsked
+            }
+                ! [ Tuple.first (checkRequest (parseLocation location)) ]
 
         EnterQuery query ->
             { model | searchQuery = query } ! []
@@ -71,6 +76,12 @@ update msg model =
 
         GotSearchResults (Err x) ->
             { model | searchResults = Failure x } ! []
+
+        GotPageWithEdges (Ok xs) ->
+            { model | currentPage = Success xs } ! []
+
+        GotPageWithEdges (Err x) ->
+            { model | currentPage = Failure x } ! []
 
 
 
@@ -100,7 +111,8 @@ view model =
 viewHeader : String -> Html Msg
 viewHeader query =
     header []
-        [ Html.form [ onSubmit (NewUrl ("/search/?q=" ++ query)) ]
+        [ h1 [] [ text "ELM SPA DEMO" ]
+        , Html.form [ onSubmit (NewUrl ("/search/?q=" ++ query)) ]
             [ input [ onInput EnterQuery, Attr.value query, placeholder "Search" ] []
             , Icon.search
             ]
@@ -109,34 +121,55 @@ viewHeader query =
 
 viewSearch : Model -> Html Msg
 viewSearch model =
-    let
-        results =
-            case model.searchResults of
-                NotAsked ->
-                    div [] []
+    case model.searchResults of
+        NotAsked ->
+            div [] []
 
-                Loading ->
-                    div [] []
+        Loading ->
+            div [] []
 
-                Failure e ->
-                    div [] []
+        Failure e ->
+            div [] []
 
-                Success a ->
-                    ul [] (List.map viewSearchResult a)
-    in
-    section [] [ results ]
+        Success a ->
+            section [] [ ul [] (List.map viewSearchResult a) ]
 
 
 viewSearchResult : Resource -> Html Msg
 viewSearchResult { title, id, imageUrl, category } =
-    li [] [ text <| Maybe.withDefault "No title" title ]
+    let
+        url =
+            "/page/" ++ toString id
+    in
+    li []
+        [ a [ href url, onClickPreventDefault <| NewUrl url ]
+            [ img [ src <| Maybe.withDefault "" imageUrl ] []
+            , h3 [] [ text <| Maybe.withDefault "No title" title ]
+            ]
+        ]
 
 
 viewPage : Model -> Html Msg
-viewPage model =
+viewPage { currentPage } =
+    case currentPage of
+        NotAsked ->
+            div [] []
+
+        Loading ->
+            viewPageContent <| Resource (Just "Loading") 0 Nothing []
+
+        Failure e ->
+            div [] [ text <| toString e ]
+
+        Success a ->
+            viewPageContent a
+
+
+viewPageContent : Resource -> Html Msg
+viewPageContent { title, id, imageUrl, category } =
     section []
-        [ img [] []
-        , h2 [] []
+        [ img [ src <| Maybe.withDefault "" imageUrl ] []
+        , h3 [] [ text <| Maybe.withDefault "No title" title ]
         , small [] []
         , p [] []
         ]
@@ -149,6 +182,16 @@ viewPage model =
 parseLocation : Location -> Route
 parseLocation =
     Url.parsePath route >> Maybe.withDefault Home
+
+
+onClickPreventDefault : Msg -> Attribute Msg
+onClickPreventDefault x =
+    onWithOptions
+        "click"
+        { preventDefault = True
+        , stopPropagation = False
+        }
+        (Decode.succeed x)
 
 
 
@@ -172,10 +215,20 @@ requestSearchResults : String -> Cmd Msg
 requestSearchResults query =
     let
         url =
-            "https://www.anp-archief.nl/api/search/?format=simple&text=" ++ query
+            "https://www.entoen.nu/api/search/?format=simple&text=" ++ query
     in
     Http.get url searchResultsDecoder
         |> Http.send GotSearchResults
+
+
+getCurrentPage : String -> Cmd Msg
+getCurrentPage id =
+    let
+        url =
+            "https://www.entoen.nu/api/base/export?id=" ++ id
+    in
+    Http.get url pageDecoder
+        |> Http.send GotPageWithEdges
 
 
 
@@ -214,4 +267,4 @@ pageDecoder =
         )
         (Decode.at [ "id" ] Decode.int)
         (Decode.maybe <| Decode.at [ "preview_url" ] Decode.string)
-        (Decode.at [ "category" ] (Decode.list Decode.string))
+        (Decode.at [ "rsc", "category" ] Decode.string |> Decode.map List.singleton)
