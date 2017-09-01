@@ -1,6 +1,6 @@
-# 🔭 Semantic Exploratory
+# Elm Spa Demo
 
-Browser for Zotonic/Ginger API written in Elm
+Clientside search SPA for Zotonic API written in Elm
 
 ## Installation
 
@@ -8,11 +8,11 @@ Browser for Zotonic/Ginger API written in Elm
 
 ## Usage
 
-Start webpack dev server with hot-module-reloading
+Start webpack dev server
 
 `npm start`
 
-## Build 
+## Build
 `npm run build`
 
 ## License
