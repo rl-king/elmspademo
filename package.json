@@ -10,7 +10,6 @@
     },
     "scripts": {
         "start": "webpack-dev-server --hot --inline",
-        "prebuild": "rimraf dist",
         "build": "webpack"
     },
     "devDependencies": {

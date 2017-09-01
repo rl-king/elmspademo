@@ -38,7 +38,26 @@ css =
 
 typography : List Css.Snippet
 typography =
-    [ E.a
+    [ E.h1
+        [ padding2 (ms 1) zero
+        , margin zero
+        , fontSize (ms 7)
+        , fontWeight (int 500)
+        ]
+    , E.h2
+        [ padding2 (ms -1) zero
+        , margin zero
+        , fontSize (ms 1)
+        , fontWeight (int 500)
+        ]
+    , E.h3
+        [ padding2 (ms -1) zero
+        , margin zero
+        , fontSize (ms 2)
+        , lineHeight (ms 3)
+        , fontWeight (int 400)
+        ]
+    , E.a
         [ color (mono B1)
         , textDecoration none
         ]
@@ -58,7 +77,44 @@ headers : List Css.Snippet
 headers =
     [ E.header
         [ displayFlex
-        , backgroundColor (mono W2)
+        , justifyContent center
+        , flexWrap wrap
+        , textAlign center
+        , descendants
+            [ E.a [ flexBasis (pct 100) ] ]
+        ]
+    , E.form
+        [ position relative
+        , displayFlex
+        , margin2 (ms 5) zero
+        , border3 (px 2) solid (mono W4)
+        ]
+    , E.button
+        [ width (ms 10)
+        , displayFlex
+        , alignItems center
+        , backgroundColor (mono W1)
+        , border zero
+        , justifyContent center
+        , outline none
+        , marginTop (px 2)
+        , cursor pointer
+        ]
+    ]
+
+
+
+-- INPUTS
+
+
+inputs : List Css.Snippet
+inputs =
+    [ E.input
+        [ border zero
+        , padding (ms 1)
+        , fontSize (ms 4)
+        , outline none
+        , width (pct 100)
         ]
     ]
 
@@ -69,10 +125,14 @@ headers =
 
 containers : List Css.Snippet
 containers =
-    [ E.body
+    [ E.html
+        [ fontSize (pct <| 100 * 12 / 16)
+        ]
+    , E.body
         [ margin zero
         , padding zero
         , fontFamilies sans
+        , backgroundColor (mono W2)
         ]
     ]
 
@@ -80,21 +140,28 @@ containers =
 searchView : List Css.Snippet
 searchView =
     [ class SearchView
-        [ padding (ms 3)
+        [ padding (ms 6)
         , descendants
             [ E.ul
-                [ displayFlex
-                , flexWrap wrap
-                , justifyContent spaceBetween
+                [ property "column-count" "4"
+                , property "column-gap" "2rem"
                 ]
             ]
         ]
     , class SearchViewResult
-        [ width (pct 17.5) ]
+        [ marginBottom (ms 6)
+        , backgroundColor (mono W1)
+        , property "break-inside" "avoid-column"
+        , descendants
+            [ E.h3
+                [ padding (ms 1)
+                ]
+            ]
+        ]
     , E.img
         [ width (pct 100)
-        , minHeight (ms 4)
-        , backgroundColor (mono W3)
+        , minHeight (ms 8)
+        , backgroundColor (mono W4)
         ]
     ]
 
@@ -105,30 +172,19 @@ pageView =
 
 
 
--- INPUTS
-
-
-inputs : List Css.Snippet
-inputs =
-    [ E.input
-        []
-    ]
-
-
-
 -- MODULARSCALE
 
 
 config : ModularScale.Config
 config =
-    { base = [ 1.2 ]
-    , interval = ModularScale.MajorSecond
+    { base = [ 1, 1.2 ]
+    , interval = ModularScale.PerfectFifth
     }
 
 
-ms : Int -> Em
+ms : Int -> Rem
 ms =
-    em << ModularScale.get config
+    Css.rem << ModularScale.get config
 
 
 
@@ -182,10 +238,7 @@ mono v =
             rgba 0 0 0 0
 
 
-( tiny, small, medium, large, huge ) =
-    ( 468, 768, 1024, 1240, 1660 )
-
-
+sans : List String
 sans =
     [ "-apple-system"
     , "BlinkMacSystemFont"

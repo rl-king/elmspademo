@@ -21,7 +21,7 @@ const entryPath = path.join(__dirname, 'src/init.js');
 const outputPath = path.join(__dirname, 'dist');
 const outputFilename = isProd ? '[name]-[hash].js' : '[name].js'
 
-console.log(chalk.yellowBright.underline.bold('Starting '+ TARGET_ENV + ' mode\n'));
+console.log(chalk.yellowBright.underline.bold('Starting ' + TARGET_ENV + ' mode\n'));
 
 var commonConfig = {
     output: {
@@ -66,7 +66,8 @@ if (isDev === true) {
             historyApiFallback: true,
             contentBase: './src',
             hot: true,
-            port: 5001
+            port: 5001,
+            stats: "minimal"
         },
         module: {
             rules: [{

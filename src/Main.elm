@@ -70,8 +70,17 @@ update msg model =
         EnterQuery query ->
             { model | searchQuery = query } ! []
 
-        GotSearchResults (Ok xs) ->
-            { model | searchResults = Success xs } ! []
+        GotSearchResults (Ok results) ->
+            let
+                resultsWithImage =
+                    case List.filter ((/=) Nothing << .imageUrl) results of
+                        [] ->
+                            results
+
+                        xs ->
+                            List.take 15 xs
+            in
+            { model | searchResults = Success resultsWithImage } ! []
 
         GotSearchResults (Err x) ->
             { model | searchResults = Failure x } ! []
@@ -110,10 +119,9 @@ view model =
 viewHeader : String -> Html Msg
 viewHeader query =
     header []
-        [ a [ href "/", onClickPreventDefault "/" ] [ h1 [] [ text "ELM SPA DEMO" ] ]
-        , Html.form [ onSubmit (NewUrl ("/search/?q=" ++ query)) ]
+        [ Html.form [ onSubmit (NewUrl ("/search/?q=" ++ query)) ]
             [ input [ onInput EnterQuery, Attr.value query, placeholder "Search" ] []
-            , Icon.search
+            , button [ onClick (NewUrl ("/search/?q=" ++ query)) ] [ Icon.search ]
             ]
         ]
 
@@ -142,8 +150,8 @@ viewSearchResult { title, id, imageUrl, category } =
     in
     li [ class [ SearchViewResult ] ]
         [ a [ href url, onClickPreventDefault url ]
-            [ img [ src <| Maybe.withDefault "" imageUrl ] []
-            , h3 [] [ text <| Maybe.withDefault "No title" title ]
+            [ img [ src (Maybe.withDefault "" imageUrl) ] []
+            , h3 [] [ maybeText "No title" title ]
             ]
         ]
 
@@ -155,10 +163,10 @@ viewPage { currentPage } =
             div [] []
 
         Loading ->
-            viewPageContent <| Resource (Just "Loading") 0 Nothing []
+            viewPageContent (Resource (Just "Loading") 0 Nothing [])
 
         Failure e ->
-            div [] [ text <| toString e ]
+            div [] [ text (toString e) ]
 
         Success a ->
             viewPageContent a
@@ -167,8 +175,8 @@ viewPage { currentPage } =
 viewPageContent : Resource -> Html Msg
 viewPageContent { title, id, imageUrl, category } =
     section []
-        [ img [ src <| Maybe.withDefault "" imageUrl ] []
-        , h3 [] [ text <| Maybe.withDefault "No title" title ]
+        [ img [ src (Maybe.withDefault "" imageUrl) ] []
+        , h3 [] [ maybeText "No title" title ]
         , small [] []
         , p [] []
         ]
@@ -182,8 +190,8 @@ route : Url.Parser (Route -> a) a
 route =
     Url.oneOf
         [ Url.map Home top
-        , Url.map Search <| Url.s "search" <?> Url.stringParam "q"
-        , Url.map Page <| Url.s "page" </> Url.string
+        , Url.map Search (Url.s "search" <?> Url.stringParam "q")
+        , Url.map Page (Url.s "page" </> Url.string)
         ]
 
 
@@ -195,7 +203,7 @@ requestSearchResults : String -> Cmd Msg
 requestSearchResults query =
     let
         url =
-            "https://www.entoen.nu/api/search/?format=simple&text=" ++ query
+            "https://www.entoen.nu/api/search/?limit=200&format=simple&text=" ++ query
     in
     Http.get url searchResultsDecoder
         |> Http.send GotSearchResults
@@ -252,6 +260,11 @@ pageDecoder =
 
 
 --HELPER FUNCTIONS
+
+
+maybeText : String -> Maybe String -> Html Msg
+maybeText default maybeValue =
+    Html.text <| Maybe.withDefault default maybeValue
 
 
 parseLocation : Location -> Route
