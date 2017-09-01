@@ -75,11 +75,7 @@ pageView =
 inputs : List Css.Snippet
 inputs =
     [ E.input
-        [ padding2 zero (px 8)
-        , margin zero
-        , border zero
-        , outline zero
-        ]
+        []
     ]
 
 

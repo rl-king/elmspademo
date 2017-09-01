@@ -11,7 +11,6 @@ import Navigation exposing (Location)
 import Task
 import Types exposing (..)
 import UrlParser as Url exposing (..)
-import Window
 
 
 main : Program Never Model Msg
@@ -26,18 +25,29 @@ main =
 
 init : Navigation.Location -> ( Model, Cmd Msg )
 init location =
+    let
+        ( initCmd, initSearchQuery ) =
+            initRequests (parseLocation location)
+    in
     { route = parseLocation location
-    , searchQuery = Maybe.withDefault "" Nothing
-    , searchResults = []
-    , currentPage = Resource Nothing 0 Nothing
-    , windowSize = Window.Size 0 0
+    , searchQuery = initSearchQuery
+    , searchResults = NotAsked
+    , currentPage = NotAsked
     }
-        ! []
+        ! [ initCmd ]
 
 
-view : Model -> Html Msg
-view model =
-    main_ [] []
+initRequests : Route -> ( Cmd Msg, String )
+initRequests route =
+    case route of
+        Search (Just x) ->
+            ( requestSearchResults x, x )
+
+        Page x ->
+            ( Cmd.none, "" )
+
+        _ ->
+            ( Cmd.none, "" )
 
 
 
@@ -47,8 +57,89 @@ view model =
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
-        _ ->
-            model ! []
+        NewUrl url ->
+            model ! [ Navigation.newUrl url ]
+
+        UrlChange location ->
+            { model | route = parseLocation location } ! []
+
+        EnterQuery query ->
+            { model | searchQuery = query } ! []
+
+        GotSearchResults (Ok xs) ->
+            { model | searchResults = Success xs } ! []
+
+        GotSearchResults (Err x) ->
+            { model | searchResults = Failure x } ! []
+
+
+
+-- VIEWS
+
+
+view : Model -> Html Msg
+view model =
+    let
+        activeView =
+            case model.route of
+                Home ->
+                    viewSearch model
+
+                Search x ->
+                    viewSearch model
+
+                Page x ->
+                    viewPage model
+    in
+    main_ []
+        [ viewHeader model.searchQuery
+        , activeView
+        ]
+
+
+viewHeader : String -> Html Msg
+viewHeader query =
+    header []
+        [ Html.form [ onSubmit (NewUrl ("/search/?q=" ++ query)) ]
+            [ input [ onInput EnterQuery, Attr.value query, placeholder "Search" ] []
+            , Icon.search
+            ]
+        ]
+
+
+viewSearch : Model -> Html Msg
+viewSearch model =
+    let
+        results =
+            case model.searchResults of
+                NotAsked ->
+                    div [] []
+
+                Loading ->
+                    div [] []
+
+                Failure e ->
+                    div [] []
+
+                Success a ->
+                    ul [] (List.map viewSearchResult a)
+    in
+    section [] [ results ]
+
+
+viewSearchResult : Resource -> Html Msg
+viewSearchResult { title, id, imageUrl, category } =
+    li [] [ text <| Maybe.withDefault "No title" title ]
+
+
+viewPage : Model -> Html Msg
+viewPage model =
+    section []
+        [ img [] []
+        , h2 [] []
+        , small [] []
+        , p [] []
+        ]
 
 
 
@@ -56,8 +147,8 @@ update msg model =
 
 
 parseLocation : Location -> Route
-parseLocation location =
-    Maybe.withDefault Home (Url.parsePath route location)
+parseLocation =
+    Url.parsePath route >> Maybe.withDefault Home
 
 
 
@@ -70,32 +161,50 @@ route =
         [ Url.map Home top
         , Url.map Search <| Url.s "search" <?> Url.stringParam "q"
         , Url.map Page <| Url.s "page" </> Url.string
-        , Url.map About <| Url.s "about"
         ]
+
+
+
+-- HTTP REQUESTS
+
+
+requestSearchResults : String -> Cmd Msg
+requestSearchResults query =
+    let
+        url =
+            "https://www.anp-archief.nl/api/search/?format=simple&text=" ++ query
+    in
+    Http.get url searchResultsDecoder
+        |> Http.send GotSearchResults
 
 
 
 --JSON DECODERS
 
 
-searchResultDecoder : Decode.Decoder (List SearchResult)
+searchResultsDecoder : Decode.Decoder (List Resource)
+searchResultsDecoder =
+    Decode.list searchResultDecoder
+
+
+searchResultDecoder : Decode.Decoder Resource
 searchResultDecoder =
-    Decode.list <|
-        Decode.map4 SearchResult
-            (Decode.maybe <|
-                Decode.oneOf
-                    [ Decode.at [ "title", "trans", "en" ] Decode.string
-                    , Decode.at [ "title", "trans", "nl" ] Decode.string
-                    ]
-            )
-            (Decode.at [ "id" ] Decode.int)
-            (Decode.maybe <| Decode.at [ "preview_url" ] Decode.string)
-            (Decode.at [ "category" ] (Decode.list Decode.string))
+    Decode.map4
+        Resource
+        (Decode.maybe <|
+            Decode.oneOf
+                [ Decode.at [ "title", "trans", "en" ] Decode.string
+                , Decode.at [ "title", "trans", "nl" ] Decode.string
+                ]
+        )
+        (Decode.at [ "id" ] Decode.int)
+        (Decode.maybe <| Decode.at [ "preview_url" ] Decode.string)
+        (Decode.at [ "category" ] (Decode.list Decode.string))
 
 
-resourceDecoder : Decode.Decoder Resource
-resourceDecoder =
-    Decode.map3
+pageDecoder : Decode.Decoder Resource
+pageDecoder =
+    Decode.map4
         Resource
         (Decode.maybe <|
             Decode.oneOf
@@ -105,3 +214,4 @@ resourceDecoder =
         )
         (Decode.at [ "id" ] Decode.int)
         (Decode.maybe <| Decode.at [ "preview_url" ] Decode.string)
+        (Decode.at [ "category" ] (Decode.list Decode.string))

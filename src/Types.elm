@@ -2,35 +2,16 @@ module Types exposing (..)
 
 import Http exposing (..)
 import Navigation exposing (..)
-import Window exposing (..)
+
+
+--TYPE ALIASES
 
 
 type alias Model =
     { route : Route
     , searchQuery : String
-    , searchResults : List SearchResult
-    , currentPage : Resource
-    , windowSize : Window.Size
-    }
-
-
-type Msg
-    = NoOp
-    | UrlChange Location
-
-
-type Route
-    = Home
-    | Search (Maybe String)
-    | Page String
-    | About
-
-
-type alias SearchResult =
-    { title : Maybe String
-    , id : Int
-    , imageUrl : Maybe String
-    , category : List String
+    , searchResults : RemoteData Http.Error (List Resource)
+    , currentPage : RemoteData Http.Error Resource
     }
 
 
@@ -38,4 +19,29 @@ type alias Resource =
     { title : Maybe String
     , id : Int
     , imageUrl : Maybe String
+    , category : List String
     }
+
+
+
+-- UNION TYPES
+
+
+type Msg
+    = NewUrl String
+    | UrlChange Location
+    | EnterQuery String
+    | GotSearchResults (Result Http.Error (List Resource))
+
+
+type RemoteData e a
+    = NotAsked
+    | Loading
+    | Failure e
+    | Success a
+
+
+type Route
+    = Home
+    | Search (Maybe String)
+    | Page String
