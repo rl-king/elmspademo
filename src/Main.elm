@@ -33,7 +33,7 @@ init location =
             parseLocation location
 
         { query, searchResults, currentPage, cmds } =
-            onUrlChange route
+            onUrlChange NotAsked route
     in
     { route = route
     , searchQuery = query
@@ -44,25 +44,29 @@ init location =
         ! cmds
 
 
-onUrlChange : Route -> UrlChangeData e a
-onUrlChange route =
+onUrlChange : RemoteData (List Resource) -> Route -> UrlChangeData a Resource
+onUrlChange results route =
+    let
+        partialLoad id =
+            case results of
+                Success xs ->
+                    List.filter ((==) id << .id) xs
+                        |> List.head
+                        |> Maybe.map Updating
+                        |> Maybe.withDefault Loading
+
+                _ ->
+                    Loading
+    in
     case route of
         Search (Just query) ->
             UrlChangeData query Loading NotAsked [ requestSearchResults query, htmlTitle query ]
 
         Page id ->
-            UrlChangeData "" NotAsked Loading [ requestPage id ]
+            UrlChangeData "" NotAsked (partialLoad id) [ requestPage id ]
 
         _ ->
             UrlChangeData "" NotAsked NotAsked [ Cmd.none ]
-
-
-type alias UrlChangeData e a =
-    { query : String
-    , searchResults : RemoteData e a
-    , currentPage : RemoteData e a
-    , cmds : List (Cmd Msg)
-    }
 
 
 
@@ -81,10 +85,10 @@ update msg model =
                     parseLocation location
 
                 { searchResults, currentPage, cmds } =
-                    onUrlChange route
+                    onUrlChange model.searchResults route
             in
             { model
-                | route = parseLocation location
+                | route = route
                 , searchResults = searchResults
                 , currentPage = currentPage
             }
@@ -144,7 +148,7 @@ view model =
 viewHeader : Model -> Html Msg
 viewHeader { searchQuery, activeCategory, searchResults } =
     header []
-        [ div [ class [ "site-logo" ], onClick (NewUrl ("/search/?q=" ++ searchQuery)) ] [ Icon.logo ]
+        [ div [ class [ "site-logo" ], onClick (NewUrl "/") ] [ Icon.logo ]
         , Html.form [ onSubmit (NewUrl ("/search/?q=" ++ searchQuery)) ]
             [ input [ onInput EnterQuery, Attr.value searchQuery, placeholder "Search" ] []
             , button [ onClick (NewUrl ("/search/?q=" ++ searchQuery)) ] [ Icon.search ]
@@ -196,16 +200,16 @@ viewPage { currentPage } =
 
 
 viewPageContent : Resource -> Html Msg
-viewPageContent { title, id, imageUrl, category } =
+viewPageContent { title, id, imageUrl, category, summary } =
     section [ class [ PageView ] ]
         [ img [ src (Maybe.withDefault "" imageUrl) ] []
-        , h3 [] [ maybeText "No title" title ]
+        , h2 [] [ maybeText "No title" title ]
         , small [] []
-        , p [] []
+        , p [] [ maybeText "" summary ]
         ]
 
 
-handleViewState : RemoteData e a -> (a -> Html Msg) -> Html Msg
+handleViewState : RemoteData a -> (a -> Html Msg) -> Html Msg
 handleViewState remoteData succesView =
     case remoteData of
         NotAsked ->
@@ -217,13 +221,16 @@ handleViewState remoteData succesView =
         Failure _ ->
             viewError
 
+        Updating a ->
+            succesView a
+
         Success a ->
             succesView a
 
 
 viewNotAsked : Html Msg
 viewNotAsked =
-    div [ class [ NotAskedView ] ] [ text "initializing" ]
+    div [ class [ NotAskedView ] ] [ text "Welcome, please enter a search query above" ]
 
 
 viewLoading : Html Msg
@@ -247,7 +254,7 @@ route =
     Url.oneOf
         [ Url.map Home top
         , Url.map Search (Url.s "search" <?> Url.stringParam "q")
-        , Url.map Page (Url.s "page" </> Url.string)
+        , Url.map Page (Url.s "page" </> Url.int)
         ]
 
 
@@ -265,11 +272,11 @@ requestSearchResults query =
         |> Http.send GotSearchResults
 
 
-requestPage : String -> Cmd Msg
+requestPage : Int -> Cmd Msg
 requestPage id =
     let
         url =
-            "https://www.entoen.nu/api/base/export?id=" ++ id
+            "https://www.entoen.nu/api/base/export?id=" ++ toString id
     in
     Http.get url pageDecoder
         |> Http.send GotPageWithEdges
@@ -286,7 +293,7 @@ searchResultsDecoder =
 
 searchResultDecoder : Decode.Decoder Resource
 searchResultDecoder =
-    Decode.map4
+    Decode.map5
         Resource
         (Decode.maybe <|
             Decode.oneOf
@@ -297,11 +304,12 @@ searchResultDecoder =
         (Decode.at [ "id" ] Decode.int)
         (Decode.maybe <| Decode.at [ "preview_url" ] Decode.string)
         (Decode.at [ "category" ] (Decode.list Decode.string))
+        (Decode.maybe <| Decode.at [ "rsc", "summary", "trans", "nl" ] Decode.string)
 
 
 pageDecoder : Decode.Decoder Resource
 pageDecoder =
-    Decode.map4
+    Decode.map5
         Resource
         (Decode.maybe <|
             Decode.oneOf
@@ -312,6 +320,7 @@ pageDecoder =
         (Decode.at [ "id" ] Decode.int)
         (Decode.maybe <| Decode.at [ "preview_url" ] Decode.string)
         (Decode.at [ "rsc", "category" ] Decode.string |> Decode.map List.singleton)
+        (Decode.maybe <| Decode.at [ "rsc", "summary", "trans", "nl" ] Decode.string)
 
 
 

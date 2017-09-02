@@ -3,6 +3,7 @@ port module Stylesheets exposing (..)
 import Css exposing (..)
 import Css.Elements as E
 import Css.File
+import Css.Media as Media
 import ModularScale
 import Types exposing (..)
 
@@ -30,6 +31,8 @@ css =
             , containers
             , searchView
             , pageView
+            , errorView
+            , notAskedView
             ]
 
 
@@ -48,7 +51,8 @@ typography =
     , E.h2
         [ padding2 (ms -1) zero
         , margin zero
-        , fontSize (ms 1)
+        , fontSize (ms 4)
+        , lineHeight (ms 5)
         , fontWeight (int 500)
         ]
     , E.h3
@@ -57,6 +61,12 @@ typography =
         , fontSize (ms 2)
         , lineHeight (ms 3)
         , fontWeight (int 400)
+        ]
+    , E.p
+        [ color (mono B3)
+        , margin zero
+        , fontSize (ms 1)
+        , lineHeight (ms 3)
         ]
     , E.a
         [ color (mono B1)
@@ -161,6 +171,7 @@ searchView =
             [ E.ul
                 [ property "column-count" "4"
                 , property "column-gap" "2rem"
+                , largeDisplay [ property "column-count" "6" ]
                 ]
             ]
         ]
@@ -186,6 +197,32 @@ pageView =
     ]
 
 
+alternateView : Style
+alternateView =
+    batch
+        [ color (mono G1)
+        , fontSize (ms 3)
+        , property "-webkit-font-smoothing" "antialiased"
+        , textAlign center
+        , paddingTop (ms 5)
+        , margin2 zero auto
+        ]
+
+
+errorView : List Css.Snippet
+errorView =
+    [ class ErrorView
+        [ alternateView ]
+    ]
+
+
+notAskedView : List Css.Snippet
+notAskedView =
+    [ class NotAskedView
+        [ alternateView ]
+    ]
+
+
 
 -- MODULARSCALE
 
@@ -206,9 +243,14 @@ ms =
 -- VARIABLES
 
 
+largeDisplay : List Style -> Style
+largeDisplay =
+    Media.withMediaQuery [ "screen and (min-width: 1280px)" ]
+
+
 (=>) : a -> b -> ( a, b )
-(=>) a b =
-    ( a, b )
+(=>) =
+    (,)
 
 
 type Mono

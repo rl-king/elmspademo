@@ -10,16 +10,16 @@ import Navigation exposing (..)
 type alias Model =
     { route : Route
     , searchQuery : String
-    , searchResults : RemoteData Http.Error (List Resource)
-    , currentPage : RemoteData Http.Error Resource
+    , searchResults : RemoteData (List Resource)
+    , currentPage : RemoteData Resource
     , activeCategory : Category
     }
 
 
-type alias UrlChangeData e a =
+type alias UrlChangeData a b =
     { query : String
-    , searchResults : RemoteData e a
-    , currentPage : RemoteData e a
+    , searchResults : RemoteData a
+    , currentPage : RemoteData b
     , cmds : List (Cmd Msg)
     }
 
@@ -29,6 +29,7 @@ type alias Resource =
     , id : Int
     , imageUrl : Maybe String
     , category : List String
+    , summary : Maybe String
     }
 
 
@@ -47,13 +48,14 @@ type Msg
 type Route
     = Home
     | Search (Maybe String)
-    | Page String
+    | Page Int
 
 
-type RemoteData e a
+type RemoteData a
     = NotAsked
     | Loading
-    | Failure e
+    | Failure Http.Error
+    | Updating a
     | Success a
 
 
