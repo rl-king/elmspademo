@@ -16,6 +16,14 @@ type alias Model =
     }
 
 
+type alias UrlChangeData e a =
+    { query : String
+    , searchResults : RemoteData e a
+    , currentPage : RemoteData e a
+    , cmds : List (Cmd Msg)
+    }
+
+
 type alias Resource =
     { title : Maybe String
     , id : Int

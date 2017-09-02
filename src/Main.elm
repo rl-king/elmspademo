@@ -1,4 +1,4 @@
-module Main exposing (..)
+port module Main exposing (..)
 
 import Html exposing (..)
 import Html.Attributes as Attr exposing (..)
@@ -11,6 +11,9 @@ import Json.Decode as Decode exposing (..)
 import Navigation exposing (Location)
 import Types exposing (..)
 import UrlParser as Url exposing (..)
+
+
+port htmlTitle : String -> Cmd msg
 
 
 main : Program Never Model Msg
@@ -26,29 +29,35 @@ main =
 init : Navigation.Location -> ( Model, Cmd Msg )
 init location =
     let
-        ( cmds, q, s, c ) =
-            onUrlChange (parseLocation location)
+        route =
+            parseLocation location
+
+        { query, searchResults, currentPage, cmds } =
+            onUrlChange route
     in
-    { route = parseLocation location
-    , searchQuery = q
-    , searchResults = s
-    , currentPage = c
+    { route = route
+    , searchQuery = query
+    , searchResults = searchResults
+    , currentPage = currentPage
     , activeCategory = All
     }
-        ! [ cmds ]
+        ! cmds
 
 
-onUrlChange : Route -> ( Cmd Msg, String, RemoteData e a, RemoteData e a )
+onUrlChange : Route -> UrlChangeData e a
 onUrlChange route =
     case route of
         Search (Just query) ->
-            ( requestSearchResults query, query, Loading, NotAsked )
+            UrlChangeData query
+                Loading
+                NotAsked
+                [ requestSearchResults query, htmlTitle query ]
 
         Page id ->
-            ( requestPage id, "", NotAsked, Loading )
+            UrlChangeData "" NotAsked Loading [ requestPage id ]
 
         _ ->
-            ( Cmd.none, "", NotAsked, NotAsked )
+            UrlChangeData "" NotAsked NotAsked [ Cmd.none ]
 
 
 
@@ -63,36 +72,41 @@ update msg model =
 
         UrlChange location ->
             let
-                ( cmds, q, s, c ) =
-                    onUrlChange (parseLocation location)
+                route =
+                    parseLocation location
+
+                { searchResults, currentPage, cmds } =
+                    onUrlChange route
             in
             { model
                 | route = parseLocation location
-                , searchResults = s
-                , currentPage = c
+                , searchResults = searchResults
+                , currentPage = currentPage
             }
-                ! [ cmds ]
+                ! cmds
 
         EnterQuery query ->
             { model | searchQuery = query } ! []
 
-        GotSearchResults (Ok results) ->
+        GotSearchResults (Ok xs) ->
             let
-                resultsSelection =
-                    case List.filter ((/=) Nothing << .imageUrl) results of
+                results =
+                    case List.filter ((/=) Nothing << .imageUrl) xs of
                         [] ->
-                            results
+                            xs
 
-                        xs ->
-                            List.take 15 xs
+                        ys ->
+                            List.take 15 ys
             in
-            { model | searchResults = Success resultsSelection, activeCategory = All } ! []
+            { model | searchResults = Success results, activeCategory = All }
+                ! []
 
         GotSearchResults (Err x) ->
             { model | searchResults = Failure x } ! []
 
         GotPageWithEdges (Ok xs) ->
-            { model | currentPage = Success xs } ! []
+            { model | currentPage = Success xs }
+                ! [ htmlTitle (Maybe.withDefault "No-title" (.title xs)) ]
 
         GotPageWithEdges (Err x) ->
             { model | currentPage = Failure x } ! []
@@ -147,9 +161,14 @@ viewSearch model =
 
 viewSearchList : List Resource -> Html Msg
 viewSearchList list =
-    section [ class [ SearchView ] ]
-        [ ul [] (List.map viewSearchResult list)
-        ]
+    case list of
+        [] ->
+            div [] [ text "No results" ]
+
+        xs ->
+            section [ class [ SearchView ] ]
+                [ ul [] (List.map viewSearchResult xs)
+                ]
 
 
 viewSearchResult : Resource -> Html Msg
