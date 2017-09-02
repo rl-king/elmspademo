@@ -48,16 +48,21 @@ onUrlChange : Route -> UrlChangeData e a
 onUrlChange route =
     case route of
         Search (Just query) ->
-            UrlChangeData query
-                Loading
-                NotAsked
-                [ requestSearchResults query, htmlTitle query ]
+            UrlChangeData query Loading NotAsked [ requestSearchResults query, htmlTitle query ]
 
         Page id ->
             UrlChangeData "" NotAsked Loading [ requestPage id ]
 
         _ ->
             UrlChangeData "" NotAsked NotAsked [ Cmd.none ]
+
+
+type alias UrlChangeData e a =
+    { query : String
+    , searchResults : RemoteData e a
+    , currentPage : RemoteData e a
+    , cmds : List (Cmd Msg)
+    }
 
 
 
@@ -192,7 +197,7 @@ viewPage { currentPage } =
 
 viewPageContent : Resource -> Html Msg
 viewPageContent { title, id, imageUrl, category } =
-    section []
+    section [ class [ PageView ] ]
         [ img [ src (Maybe.withDefault "" imageUrl) ] []
         , h3 [] [ maybeText "No title" title ]
         , small [] []
@@ -223,7 +228,9 @@ viewNotAsked =
 
 viewLoading : Html Msg
 viewLoading =
-    div [ class [ LoadingView ] ] [ text "loading" ]
+    div [ class [ LoadingView ] ]
+        [ div [ class [ "loader" ] ] [ div [ class [ "spinner" ] ] [] ]
+        ]
 
 
 viewError : Html Msg

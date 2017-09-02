@@ -29,6 +29,7 @@ css =
             , headers
             , containers
             , searchView
+            , pageView
             ]
 
 
@@ -141,7 +142,13 @@ containers =
         [ margin zero
         , padding zero
         , fontFamilies sans
-        , backgroundColor (mono W2)
+        , backgroundColor (mono W3)
+        ]
+    , E.img
+        [ width (pct 100)
+        , minHeight (ms 8)
+        , borderRadius (px 4)
+        , backgroundColor (mono W4)
         ]
     ]
 
@@ -158,7 +165,7 @@ searchView =
             ]
         ]
     , class SearchViewResult
-        [ marginBottom (ms 6)
+        [ marginBottom (ms 3)
         , backgroundColor (mono W1)
         , property "break-inside" "avoid-column"
         , descendants
@@ -167,17 +174,16 @@ searchView =
                 ]
             ]
         ]
-    , E.img
-        [ width (pct 100)
-        , minHeight (ms 8)
-        , backgroundColor (mono W4)
-        ]
     ]
 
 
 pageView : List Css.Snippet
 pageView =
-    []
+    [ class PageView
+        [ maxWidth (ms 18)
+        , margin2 zero auto
+        ]
+    ]
 
 
 
