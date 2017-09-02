@@ -75,7 +75,16 @@ typography =
 
 headers : List Css.Snippet
 headers =
-    [ E.header
+    [ class "site-logo"
+        [ flexBasis (pct 100)
+        , margin2 (ms 4) zero
+        ]
+    , class "categories"
+        [ flexBasis (pct 100)
+        , displayFlex
+        , margin2 (ms 4) zero
+        ]
+    , E.header
         [ displayFlex
         , justifyContent center
         , flexWrap wrap
@@ -86,7 +95,7 @@ headers =
     , E.form
         [ position relative
         , displayFlex
-        , margin2 (ms 5) zero
+        , marginBottom (ms 5)
         , border3 (px 2) solid (mono W4)
         ]
     , E.button
@@ -112,7 +121,7 @@ inputs =
     [ E.input
         [ border zero
         , padding (ms 1)
-        , fontSize (ms 4)
+        , fontSize (ms 3)
         , outline none
         , width (pct 100)
         ]
@@ -140,7 +149,7 @@ containers =
 searchView : List Css.Snippet
 searchView =
     [ class SearchView
-        [ padding (ms 6)
+        [ padding2 (ms 2) (ms 6)
         , descendants
             [ E.ul
                 [ property "column-count" "4"

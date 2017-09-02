@@ -4,6 +4,7 @@ import Html exposing (..)
 import Html.Attributes as Attr exposing (..)
 import Html.CssHelpers exposing (withNamespace)
 import Html.Events exposing (onClick, onInput, onSubmit, onWithOptions)
+import Html.Lazy as Lazy
 import Http
 import Icons as Icon
 import Json.Decode as Decode exposing (..)
@@ -18,35 +19,36 @@ main =
         { init = init
         , view = view
         , update = update
-        , subscriptions = always Sub.none
+        , subscriptions = \_ -> Sub.none
         }
 
 
 init : Navigation.Location -> ( Model, Cmd Msg )
 init location =
     let
-        ( initCmd, initSearchQuery ) =
-            checkRequest (parseLocation location)
+        ( cmds, q, s, c ) =
+            onUrlChange (parseLocation location)
     in
     { route = parseLocation location
-    , searchQuery = initSearchQuery
-    , searchResults = NotAsked
-    , currentPage = NotAsked
+    , searchQuery = q
+    , searchResults = s
+    , currentPage = c
+    , activeCategory = All
     }
-        ! [ initCmd ]
+        ! [ cmds ]
 
 
-checkRequest : Route -> ( Cmd Msg, String )
-checkRequest route =
+onUrlChange : Route -> ( Cmd Msg, String, RemoteData e a, RemoteData e a )
+onUrlChange route =
     case route of
         Search (Just query) ->
-            ( requestSearchResults query, query )
+            ( requestSearchResults query, query, Loading, NotAsked )
 
         Page id ->
-            ( requestPage id, "" )
+            ( requestPage id, "", NotAsked, Loading )
 
         _ ->
-            ( Cmd.none, "" )
+            ( Cmd.none, "", NotAsked, NotAsked )
 
 
 
@@ -60,19 +62,23 @@ update msg model =
             model ! [ Navigation.newUrl url ]
 
         UrlChange location ->
+            let
+                ( cmds, q, s, c ) =
+                    onUrlChange (parseLocation location)
+            in
             { model
                 | route = parseLocation location
-                , searchResults = NotAsked
-                , currentPage = NotAsked
+                , searchResults = s
+                , currentPage = c
             }
-                ! [ Tuple.first (checkRequest (parseLocation location)) ]
+                ! [ cmds ]
 
         EnterQuery query ->
             { model | searchQuery = query } ! []
 
         GotSearchResults (Ok results) ->
             let
-                resultsWithImage =
+                resultsSelection =
                     case List.filter ((/=) Nothing << .imageUrl) results of
                         [] ->
                             results
@@ -80,7 +86,7 @@ update msg model =
                         xs ->
                             List.take 15 xs
             in
-            { model | searchResults = Success resultsWithImage } ! []
+            { model | searchResults = Success resultsSelection, activeCategory = All } ! []
 
         GotSearchResults (Err x) ->
             { model | searchResults = Failure x } ! []
@@ -111,35 +117,39 @@ view model =
                     viewPage model
     in
     main_ []
-        [ viewHeader model.searchQuery
+        [ Lazy.lazy viewHeader model
         , activeView
         ]
 
 
-viewHeader : String -> Html Msg
-viewHeader query =
+viewHeader : Model -> Html Msg
+viewHeader { searchQuery, activeCategory, searchResults } =
     header []
-        [ Html.form [ onSubmit (NewUrl ("/search/?q=" ++ query)) ]
-            [ input [ onInput EnterQuery, Attr.value query, placeholder "Search" ] []
-            , button [ onClick (NewUrl ("/search/?q=" ++ query)) ] [ Icon.search ]
+        [ div [ class [ "site-logo" ], onClick (NewUrl ("/search/?q=" ++ searchQuery)) ] [ Icon.logo ]
+        , Html.form [ onSubmit (NewUrl ("/search/?q=" ++ searchQuery)) ]
+            [ input [ onInput EnterQuery, Attr.value searchQuery, placeholder "Search" ] []
+            , button [ onClick (NewUrl ("/search/?q=" ++ searchQuery)) ] [ Icon.search ]
             ]
+
+        -- , ul [ class [ "categories" ] ] (List.map viewHeaderCategory categories)
         ]
+
+
+viewHeaderCategory : String -> Html Msg
+viewHeaderCategory category =
+    li [] [ text category ]
 
 
 viewSearch : Model -> Html Msg
 viewSearch model =
-    case model.searchResults of
-        NotAsked ->
-            div [] []
+    handleViewState model.searchResults viewSearchList
 
-        Loading ->
-            section [ class [ SearchView ] ] [ text "loading" ]
 
-        Failure e ->
-            section [ class [ SearchView ] ] [ text <| toString e ]
-
-        Success a ->
-            section [ class [ SearchView ] ] [ ul [] (List.map viewSearchResult a) ]
+viewSearchList : List Resource -> Html Msg
+viewSearchList list =
+    section [ class [ SearchView ] ]
+        [ ul [] (List.map viewSearchResult list)
+        ]
 
 
 viewSearchResult : Resource -> Html Msg
@@ -158,18 +168,7 @@ viewSearchResult { title, id, imageUrl, category } =
 
 viewPage : Model -> Html Msg
 viewPage { currentPage } =
-    case currentPage of
-        NotAsked ->
-            div [] []
-
-        Loading ->
-            viewPageContent (Resource (Just "Loading") 0 Nothing [])
-
-        Failure e ->
-            div [] [ text (toString e) ]
-
-        Success a ->
-            viewPageContent a
+    handleViewState currentPage viewPageContent
 
 
 viewPageContent : Resource -> Html Msg
@@ -180,6 +179,37 @@ viewPageContent { title, id, imageUrl, category } =
         , small [] []
         , p [] []
         ]
+
+
+handleViewState : RemoteData e a -> (a -> Html Msg) -> Html Msg
+handleViewState remoteData succesView =
+    case remoteData of
+        NotAsked ->
+            viewNotAsked
+
+        Loading ->
+            viewLoading
+
+        Failure _ ->
+            viewError
+
+        Success a ->
+            succesView a
+
+
+viewNotAsked : Html Msg
+viewNotAsked =
+    div [ class [ NotAskedView ] ] [ text "initializing" ]
+
+
+viewLoading : Html Msg
+viewLoading =
+    div [ class [ LoadingView ] ] [ text "loading" ]
+
+
+viewError : Html Msg
+viewError =
+    div [ class [ ErrorView ] ] [ text "Requested page is currently unavailable." ]
 
 
 
@@ -274,8 +304,7 @@ parseLocation =
 
 onClickPreventDefault : String -> Attribute Msg
 onClickPreventDefault urlPath =
-    onWithOptions
-        "click"
+    onWithOptions "click"
         { preventDefault = True
         , stopPropagation = False
         }

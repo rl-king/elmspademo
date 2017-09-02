@@ -12,6 +12,7 @@ type alias Model =
     , searchQuery : String
     , searchResults : RemoteData Http.Error (List Resource)
     , currentPage : RemoteData Http.Error Resource
+    , activeCategory : Category
     }
 
 
@@ -48,7 +49,20 @@ type RemoteData e a
     | Success a
 
 
+type Category
+    = Product
+    | Media
+    | Image
+    | Text
+    | WindowImage
+    | Article
+    | All
+
+
 type CssClasses
     = PageView
     | SearchView
     | SearchViewResult
+    | NotAskedView
+    | LoadingView
+    | ErrorView
