@@ -31,8 +31,7 @@ css =
             , containers
             , searchView
             , pageView
-            , errorView
-            , notAskedView
+            , alternateView
             ]
 
 
@@ -107,10 +106,11 @@ headers =
         [ position relative
         , displayFlex
         , marginBottom (ms 5)
+        , backgroundColor (mono W1)
         , border3 (px 2) solid (mono W4)
         ]
     , E.button
-        [ width (ms 10)
+        [ width (ms 8)
         , displayFlex
         , alignItems center
         , backgroundColor (mono W1)
@@ -119,6 +119,17 @@ headers =
         , outline none
         , marginTop (px 2)
         , cursor pointer
+        ]
+    , class CategoryList
+        [ displayFlex
+        , width (pct 100)
+        , justifyContent center
+        , descendants
+            [ E.li
+                [ margin2 zero (ms 1)
+                , fontSize (ms 1)
+                ]
+            ]
         ]
     ]
 
@@ -166,11 +177,12 @@ containers =
 searchView : List Css.Snippet
 searchView =
     [ class SearchView
-        [ padding2 (ms 2) (ms 6)
+        [ padding (ms 6)
         , descendants
             [ E.ul
-                [ property "column-count" "4"
+                [ property "column-count" "2"
                 , property "column-gap" "2rem"
+                , smallDisplay [ property "column-count" "4" ]
                 , largeDisplay [ property "column-count" "6" ]
                 ]
             ]
@@ -197,8 +209,8 @@ pageView =
     ]
 
 
-alternateView : Style
-alternateView =
+alternateViewStyle : Style
+alternateViewStyle =
     batch
         [ color (mono G1)
         , fontSize (ms 3)
@@ -209,17 +221,9 @@ alternateView =
         ]
 
 
-errorView : List Css.Snippet
-errorView =
-    [ class ErrorView
-        [ alternateView ]
-    ]
-
-
-notAskedView : List Css.Snippet
-notAskedView =
-    [ class NotAskedView
-        [ alternateView ]
+alternateView : List Css.Snippet
+alternateView =
+    [ class NotificationView [ alternateViewStyle ]
     ]
 
 
@@ -239,13 +243,18 @@ ms =
     Css.rem << ModularScale.get config
 
 
-
--- VARIABLES
+smallDisplay : List Style -> Style
+smallDisplay =
+    Media.withMediaQuery [ "screen and (min-width: 768px)" ]
 
 
 largeDisplay : List Style -> Style
 largeDisplay =
     Media.withMediaQuery [ "screen and (min-width: 1280px)" ]
+
+
+
+-- VARIABLES
 
 
 (=>) : a -> b -> ( a, b )

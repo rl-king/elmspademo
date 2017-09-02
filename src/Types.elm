@@ -28,7 +28,7 @@ type alias Resource =
     { title : Maybe String
     , id : Int
     , imageUrl : Maybe String
-    , category : List String
+    , category : List Category
     , summary : Maybe String
     }
 
@@ -75,4 +75,5 @@ type CssClasses
     | SearchViewResult
     | NotAskedView
     | LoadingView
-    | ErrorView
+    | NotificationView
+    | CategoryList

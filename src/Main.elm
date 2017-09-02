@@ -47,7 +47,7 @@ init location =
 onUrlChange : RemoteData (List Resource) -> Route -> UrlChangeData a Resource
 onUrlChange results route =
     let
-        partialLoad id =
+        checkCache id =
             case results of
                 Success xs ->
                     List.filter ((==) id << .id) xs
@@ -63,7 +63,7 @@ onUrlChange results route =
             UrlChangeData query Loading NotAsked [ requestSearchResults query, htmlTitle query ]
 
         Page id ->
-            UrlChangeData "" NotAsked (partialLoad id) [ requestPage id ]
+            UrlChangeData "" NotAsked (checkCache id) [ requestPage id ]
 
         _ ->
             UrlChangeData "" NotAsked NotAsked [ Cmd.none ]
@@ -133,11 +133,11 @@ view model =
                 Home ->
                     viewSearch model
 
-                Search x ->
+                Search _ ->
                     viewSearch model
 
-                Page x ->
-                    viewPage model
+                Page _ ->
+                    Lazy.lazy viewPage model
     in
     main_ []
         [ Lazy.lazy viewHeader model
@@ -153,14 +153,16 @@ viewHeader { searchQuery, activeCategory, searchResults } =
             [ input [ onInput EnterQuery, Attr.value searchQuery, placeholder "Search" ] []
             , button [ onClick (NewUrl ("/search/?q=" ++ searchQuery)) ] [ Icon.search ]
             ]
-
-        -- , ul [ class [ "categories" ] ] (List.map viewHeaderCategory categories)
+        , ul [ class [ CategoryList ] ]
+            (List.map viewHeaderCategory
+                [ Product, Media, Image, WindowImage, Article, Text, All ]
+            )
         ]
 
 
-viewHeaderCategory : String -> Html Msg
+viewHeaderCategory : Category -> Html Msg
 viewHeaderCategory category =
-    li [] [ text category ]
+    li [] [ text (categoryToString category) ]
 
 
 viewSearch : Model -> Html Msg
@@ -172,7 +174,7 @@ viewSearchList : List Resource -> Html Msg
 viewSearchList list =
     case list of
         [] ->
-            div [] [ text "No results" ]
+            div [ class [ NotificationView ] ] [ text "No results" ]
 
         xs ->
             section [ class [ SearchView ] ]
@@ -213,13 +215,13 @@ handleViewState : RemoteData a -> (a -> Html Msg) -> Html Msg
 handleViewState remoteData succesView =
     case remoteData of
         NotAsked ->
-            viewNotAsked
+            notificationView "Welcome, please enter a search query above"
 
         Loading ->
             viewLoading
 
         Failure _ ->
-            viewError
+            notificationView "Requested page is currently unavailable."
 
         Updating a ->
             succesView a
@@ -228,21 +230,16 @@ handleViewState remoteData succesView =
             succesView a
 
 
-viewNotAsked : Html Msg
-viewNotAsked =
-    div [ class [ NotAskedView ] ] [ text "Welcome, please enter a search query above" ]
+notificationView : String -> Html Msg
+notificationView x =
+    section [ class [ NotificationView ] ] [ text x ]
 
 
 viewLoading : Html Msg
 viewLoading =
-    div [ class [ LoadingView ] ]
+    section [ class [ LoadingView ] ]
         [ div [ class [ "loader" ] ] [ div [ class [ "spinner" ] ] [] ]
         ]
-
-
-viewError : Html Msg
-viewError =
-    div [ class [ ErrorView ] ] [ text "Requested page is currently unavailable." ]
 
 
 
@@ -303,7 +300,9 @@ searchResultDecoder =
         )
         (Decode.at [ "id" ] Decode.int)
         (Decode.maybe <| Decode.at [ "preview_url" ] Decode.string)
-        (Decode.at [ "category" ] (Decode.list Decode.string))
+        (Decode.at [ "category" ] (Decode.list Decode.string)
+            |> Decode.map toCategoryType
+        )
         (Decode.maybe <| Decode.at [ "rsc", "summary", "trans", "nl" ] Decode.string)
 
 
@@ -319,8 +318,10 @@ pageDecoder =
         )
         (Decode.at [ "id" ] Decode.int)
         (Decode.maybe <| Decode.at [ "preview_url" ] Decode.string)
-        (Decode.at [ "rsc", "category" ] Decode.string |> Decode.map List.singleton)
-        (Decode.maybe <| Decode.at [ "rsc", "summary", "trans", "nl" ] Decode.string)
+        (Decode.at [ "rsc", "category" ] Decode.string
+            |> Decode.map (toCategoryType << List.singleton)
+        )
+        (Decode.succeed Nothing)
 
 
 
@@ -348,3 +349,58 @@ onClickPreventDefault urlPath =
 
 { class } =
     Html.CssHelpers.withNamespace ""
+
+
+toCategoryType : List String -> List Category
+toCategoryType =
+    List.map stringToCategory
+
+
+stringToCategory : String -> Category
+stringToCategory x =
+    case String.toLower x of
+        "product" ->
+            Product
+
+        "media" ->
+            Media
+
+        "image" ->
+            Image
+
+        "windowimage" ->
+            WindowImage
+
+        "article" ->
+            Article
+
+        "text" ->
+            Text
+
+        _ ->
+            All
+
+
+categoryToString : Category -> String
+categoryToString x =
+    case x of
+        Product ->
+            "Product"
+
+        Media ->
+            "Media"
+
+        Image ->
+            "Image"
+
+        WindowImage ->
+            "Windowimage"
+
+        Article ->
+            "Article"
+
+        Text ->
+            "Text"
+
+        All ->
+            "All"
