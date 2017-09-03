@@ -1,7 +1,7 @@
 port module Main exposing (..)
 
 import Date exposing (..)
-import Date.Extra exposing (..)
+import Date.Extra exposing (toFormattedString)
 import Html exposing (..)
 import Html.Attributes as Attr exposing (..)
 import Html.CssHelpers exposing (withNamespace)
@@ -11,6 +11,7 @@ import Http exposing (Error, get, send)
 import Icons as Icon
 import Json.Decode as Decode exposing (..)
 import Navigation exposing (Location)
+import Set exposing (..)
 import Types exposing (..)
 import UrlParser as Url exposing ((</>), (<?>), map, oneOf, s, top)
 
@@ -41,7 +42,7 @@ init location =
     , searchQuery = query
     , searchResults = searchResults
     , currentPage = currentPage
-    , activeCategory = All
+    , selectedCategories = Set.empty
     }
         ! cmds
 
@@ -49,23 +50,19 @@ init location =
 onUrlChange : RemoteData (List Resource) -> Route -> UrlChangeData a Resource
 onUrlChange results route =
     let
-        checkCache id =
-            case results of
-                Success xs ->
-                    List.filter ((==) id << .id) xs
-                        |> List.head
-                        |> Maybe.map Updating
-                        |> Maybe.withDefault Loading
-
-                _ ->
-                    Loading
+        getCached id =
+            remoteWithDefault [] results
+                |> List.filter ((==) id << .id)
+                |> List.map Updating
+                |> List.head
+                |> Maybe.withDefault Loading
     in
     case route of
         Search (Just query) ->
             UrlChangeData query Loading NotAsked [ requestSearchResults query, htmlTitle query ]
 
         Page id ->
-            UrlChangeData "" NotAsked (checkCache id) [ requestPage id ]
+            UrlChangeData "" NotAsked (getCached id) [ requestPage id ]
 
         _ ->
             UrlChangeData "" NotAsked NotAsked [ Cmd.none ]
@@ -107,20 +104,30 @@ update msg model =
                             xs
 
                         ys ->
-                            List.take 15 ys
+                            List.take 25 ys
             in
-            { model | searchResults = Success results, activeCategory = All }
+            { model | searchResults = Success results, selectedCategories = Set.empty }
                 ! []
 
         GotSearchResults (Err x) ->
             { model | searchResults = Failure x } ! []
 
-        GotPageWithEdges (Ok xs) ->
+        GotPage (Ok xs) ->
             { model | currentPage = Success xs }
                 ! [ htmlTitle (Maybe.withDefault "No-title" (.title xs)) ]
 
-        GotPageWithEdges (Err x) ->
+        GotPage (Err x) ->
             { model | currentPage = Failure x } ! []
+
+        SetCategory x ->
+            let
+                newSelection =
+                    if Set.member x model.selectedCategories then
+                        Set.remove x model.selectedCategories
+                    else
+                        Set.insert x model.selectedCategories
+            in
+            { model | selectedCategories = newSelection } ! []
 
 
 
@@ -148,33 +155,55 @@ view model =
 
 
 viewHeader : Model -> Html Msg
-viewHeader { searchQuery, activeCategory, searchResults } =
+viewHeader { searchQuery, selectedCategories, searchResults } =
     header []
         [ div [ class [ "site-logo" ], onClick (NewUrl "/") ] [ Icon.logo ]
         , Html.form [ onSubmit (NewUrl ("/search/?q=" ++ searchQuery)) ]
             [ input [ onInput EnterQuery, Attr.value searchQuery, placeholder "Search" ] []
             , button [ onClickPreventDefault ("/search/?q=" ++ searchQuery) ] [ Icon.search ]
             ]
-        , ul [ class [ CategoryList ] ]
-            (List.map viewHeaderCategory
-                [ Product, Media, Image, WindowImage, Article, Text, All ]
-            )
+        , viewHeaderCategory searchResults selectedCategories
         ]
 
 
-viewHeaderCategory : Category -> Html Msg
-viewHeaderCategory category =
-    li [] [ text (categoryToString category) ]
+viewHeaderCategory : RemoteData (List Resource) -> Set String -> Html Msg
+viewHeaderCategory results filter =
+    let
+        allCats =
+            List.concatMap .category (remoteWithDefault [] results)
+
+        count x =
+            List.filter ((==) x) allCats
+                |> List.length
+
+        -- qwe =
+        -- List.foldl (\acc x -> ( x, count x )) [] allCats
+    in
+    ul [ class [ CategoryList ] ] (List.map (categoryItem filter) (Set.toList <| Set.fromList allCats))
+
+
+categoryItem : Set String -> String -> Html Msg
+categoryItem filter x =
+    li
+        [ onClick (SetCategory x)
+        , classList [ ( "selected", Set.member x filter ) ]
+        ]
+        [ text x ]
 
 
 viewSearch : Model -> Html Msg
 viewSearch model =
-    handleViewState model.searchResults viewSearchList
+    handleViewState model.searchResults (viewSearchList model.selectedCategories)
 
 
-viewSearchList : List Resource -> Html Msg
-viewSearchList list =
-    case list of
+viewSearchList : Set String -> List Resource -> Html Msg
+viewSearchList filter list =
+    let
+        filteredList =
+            list
+                |> List.filter (\x -> List.isEmpty (List.filter (flip Set.member filter) x.category))
+    in
+    case filteredList of
         [] ->
             div [ class [ NotificationView ] ] [ text "No results" ]
 
@@ -208,19 +237,23 @@ viewPageContent { title, id, imageUrl, category, summary, created } =
     section [ class [ PageView ] ]
         [ img [ src (Maybe.withDefault "" imageUrl) ] []
         , h2 [] [ maybeText "No title" title ]
-        , time [] [ text (viewDate created) ]
+        , viewDate created
         , p [] [ maybeText "" summary ]
         ]
 
 
-viewDate : Maybe Date -> String
+viewDate : Maybe Date -> Html Msg
 viewDate date =
+    let
+        format =
+            Date.Extra.toFormattedString "EEEE, d, y 'at' hh:mm"
+    in
     case date of
         Nothing ->
-            ""
+            time [] []
 
         Just x ->
-            Date.Extra.toFormattedString "EEEE, MMMM d, y 'at' h:mm a" x
+            time [ datetime (format x) ] [ text (format x) ]
 
 
 handleViewState : RemoteData a -> (a -> Html Msg) -> Html Msg
@@ -288,7 +321,7 @@ requestPage id =
             "https://www.entoen.nu/api/base/export?id=" ++ toString id
     in
     Http.get url pageDecoder
-        |> Http.send GotPageWithEdges
+        |> Http.send GotPage
 
 
 
@@ -313,9 +346,7 @@ searchResultDecoder =
         )
         (Decode.at [ "id" ] Decode.int)
         (Decode.maybe (Decode.at [ "preview_url" ] Decode.string))
-        (Decode.at [ "category" ] (Decode.list Decode.string)
-            |> Decode.map toCategoryType
-        )
+        (Decode.at [ "category" ] (Decode.list Decode.string))
         (Decode.maybe
             (Decode.oneOf
                 [ Decode.at [ "summary", "trans", "en" ] Decode.string
@@ -339,9 +370,7 @@ pageDecoder =
         )
         (Decode.at [ "id" ] Decode.int)
         (Decode.maybe (Decode.at [ "preview_url" ] Decode.string))
-        (Decode.at [ "rsc", "category" ] Decode.string
-            |> Decode.map (toCategoryType << List.singleton)
-        )
+        (Decode.at [ "rsc", "category" ] Decode.string |> Decode.map List.singleton)
         (Decode.maybe
             (Decode.oneOf
                 [ Decode.at [ "rsc", "summary", "trans", "en" ] Decode.string
@@ -356,11 +385,6 @@ pageDecoder =
 
 
 --HELPER FUNCTIONS
-
-
-(=>) : a -> b -> ( a, b )
-(=>) =
-    (,)
 
 
 maybeText : String -> Maybe String -> Html Msg
@@ -386,56 +410,11 @@ onClickPreventDefault urlPath =
     Html.CssHelpers.withNamespace ""
 
 
-toCategoryType : List String -> List Category
-toCategoryType =
-    List.map stringToCategory
-
-
-stringToCategory : String -> Category
-stringToCategory x =
-    case String.toLower x of
-        "product" ->
-            Product
-
-        "media" ->
-            Media
-
-        "image" ->
-            Image
-
-        "windowimage" ->
-            WindowImage
-
-        "article" ->
-            Article
-
-        "text" ->
-            Text
+remoteWithDefault : a -> RemoteData a -> a
+remoteWithDefault default remote =
+    case remote of
+        Success value ->
+            value
 
         _ ->
-            All
-
-
-categoryToString : Category -> String
-categoryToString x =
-    case x of
-        Product ->
-            "Product"
-
-        Media ->
-            "Media"
-
-        Image ->
-            "Image"
-
-        WindowImage ->
-            "Windowimage"
-
-        Article ->
-            "Article"
-
-        Text ->
-            "Text"
-
-        All ->
-            "All"
+            default

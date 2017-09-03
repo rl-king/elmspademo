@@ -3,6 +3,7 @@ module Types exposing (..)
 import Date exposing (..)
 import Http exposing (..)
 import Navigation exposing (..)
+import Set exposing (..)
 
 
 --TYPE ALIASES
@@ -13,7 +14,7 @@ type alias Model =
     , searchQuery : String
     , searchResults : RemoteData (List Resource)
     , currentPage : RemoteData Resource
-    , activeCategory : Category
+    , selectedCategories : Set String
     }
 
 
@@ -29,7 +30,7 @@ type alias Resource =
     { title : Maybe String
     , id : Int
     , imageUrl : Maybe String
-    , category : List Category
+    , category : List String
     , summary : Maybe String
     , created : Maybe Date
     }
@@ -44,7 +45,8 @@ type Msg
     | UrlChange Location
     | EnterQuery String
     | GotSearchResults (Result Http.Error (List Resource))
-    | GotPageWithEdges (Result Http.Error Resource)
+    | GotPage (Result Http.Error Resource)
+    | SetCategory String
 
 
 type Route
@@ -68,7 +70,7 @@ type Category
     | Text
     | WindowImage
     | Article
-    | All
+    | Other
 
 
 type CssClasses

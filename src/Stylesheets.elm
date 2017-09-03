@@ -1,6 +1,7 @@
 port module Stylesheets exposing (..)
 
 import Css exposing (..)
+import Css.Colors as C
 import Css.Elements as E
 import Css.File
 import Css.Media as Media
@@ -126,8 +127,15 @@ headers =
         , justifyContent center
         , descendants
             [ E.li
-                [ margin2 zero (ms 1)
+                [ margin2 zero (ms 0)
                 , fontSize (ms 1)
+                , textTransform capitalize
+                , cursor pointer
+                , padding2 (ms -1) (ms -2)
+                , borderRadius (px 4)
+                ]
+            , class "selected"
+                [ backgroundColor C.yellow
                 ]
             ]
         ]
@@ -205,6 +213,7 @@ pageView =
     [ class PageView
         [ maxWidth (ms 18)
         , margin2 zero auto
+        , padding (ms 6)
         ]
     ]
 
