@@ -2,7 +2,7 @@ port module Main exposing (..)
 
 import Date exposing (..)
 import Date.Extra exposing (toFormattedString)
-import Dict exposing (..)
+import Dict exposing (Dict, insert, member, update)
 import Html exposing (..)
 import Html.Attributes as Attr exposing (..)
 import Html.CssHelpers exposing (withNamespace)
@@ -12,7 +12,8 @@ import Http exposing (Error, get, send)
 import Icons as Icon
 import Json.Decode as Decode exposing (..)
 import Navigation exposing (Location)
-import Set exposing (..)
+import Set exposing (Set, insert, member)
+import Transit
 import Types exposing (..)
 import UrlParser as Url exposing ((</>), (<?>), map, oneOf, s, top)
 
