@@ -86,13 +86,8 @@ typography =
 
 headers : List Css.Snippet
 headers =
-    [ class "site-logo"
+    [ class SiteLogo
         [ flexBasis (pct 100)
-        , margin2 (ms 4) zero
-        ]
-    , class "categories"
-        [ flexBasis (pct 100)
-        , displayFlex
         , margin2 (ms 4) zero
         ]
     , E.header

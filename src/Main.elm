@@ -10,10 +10,9 @@ import Html.Events exposing (onClick, onInput, onSubmit, onWithOptions)
 import Html.Lazy as Lazy exposing (lazy, lazy2)
 import Http exposing (Error, get, send)
 import Icons as Icon
-import Json.Decode as Decode exposing (..)
+import Json.Decode as D
 import Navigation exposing (Location)
 import Set exposing (Set, insert, member)
-import Transit
 import Types exposing (..)
 import UrlParser as Url exposing ((</>), (<?>), map, oneOf, s, top)
 
@@ -159,7 +158,7 @@ view model =
 viewHeader : Model -> Html Msg
 viewHeader { searchQuery, selectedCategories, searchResults } =
     header []
-        [ div [ class [ "site-logo" ], onClick (NewUrl "/") ] [ Icon.logo ]
+        [ div [ class [ SiteLogo ], onClick (NewUrl "/") ] [ Icon.logo ]
         , Html.form [ onSubmit (NewUrl ("/search/?q=" ++ searchQuery)) ]
             [ input [ onInput EnterQuery, Attr.value searchQuery, placeholder "Search" ] []
             , button [ onClickPreventDefault ("/search/?q=" ++ searchQuery) ] [ Icon.search ]
@@ -197,25 +196,25 @@ categoryItem filter ( cat, count ) =
 
 
 viewSearch : Model -> Html Msg
-viewSearch model =
-    handleViewState model.searchResults (viewSearchList model.selectedCategories)
+viewSearch { searchResults, selectedCategories } =
+    handleViewState searchResults (viewSearchList selectedCategories)
 
 
 viewSearchList : Set String -> List Resource -> Html Msg
 viewSearchList filter results =
     let
+        hasCategory =
+            not << List.isEmpty << List.filter (flip Set.member filter) << .category
+
         filteredResults =
             if Set.isEmpty filter then
                 results
             else
                 List.filter hasCategory results
-
-        hasCategory =
-            not << List.isEmpty << List.filter (flip Set.member filter) << .category
     in
     case filteredResults of
         [] ->
-            div [ class [ NotificationView ] ] [ text "No results" ]
+            notificationView "No results"
 
         xs ->
             section [ class [ SearchView ] ]
@@ -276,7 +275,7 @@ handleViewState remoteData succesView =
             viewLoading
 
         Failure _ ->
-            notificationView "Requested page is currently unavailable."
+            notificationView "Requested page is currently unavailable"
 
         Updating x ->
             succesView x
@@ -338,58 +337,55 @@ requestPage id =
 --JSON DECODERS
 
 
-searchResultsDecoder : Decode.Decoder (List Resource)
+maybeOneOf : List (D.Decoder a) -> D.Decoder (Maybe a)
+maybeOneOf =
+    D.maybe << D.oneOf
+
+
+searchResultsDecoder : D.Decoder (List Resource)
 searchResultsDecoder =
-    Decode.list searchResultDecoder
+    D.list searchResultDecoder
 
 
-searchResultDecoder : Decode.Decoder Resource
+searchResultDecoder : D.Decoder Resource
 searchResultDecoder =
-    Decode.map6
+    D.map6
         Resource
-        (Decode.maybe
-            (Decode.oneOf
-                [ Decode.at [ "title", "trans", "en" ] Decode.string
-                , Decode.at [ "title", "trans", "nl" ] Decode.string
-                ]
-            )
+        (maybeOneOf
+            [ D.at [ "title", "trans", "en" ] D.string
+            , D.at [ "title", "trans", "nl" ] D.string
+            ]
         )
-        (Decode.at [ "id" ] Decode.int)
-        (Decode.maybe (Decode.at [ "preview_url" ] Decode.string))
-        (Decode.at [ "category" ] (Decode.list Decode.string))
-        (Decode.maybe
-            (Decode.oneOf
-                [ Decode.at [ "summary", "trans", "en" ] Decode.string
-                , Decode.at [ "summary", "trans", "nl" ] Decode.string
-                ]
-            )
+        (D.field "id" D.int)
+        (D.field "preview_url" D.string |> D.maybe)
+        (D.field "category" (D.list D.string))
+        (maybeOneOf
+            [ D.at [ "summary", "trans", "en" ] D.string
+            , D.at [ "summary", "trans", "nl" ] D.string
+            ]
         )
-        (Decode.succeed Nothing)
+        (D.succeed Nothing)
 
 
-pageDecoder : Decode.Decoder Resource
+pageDecoder : D.Decoder Resource
 pageDecoder =
-    Decode.map6
+    D.map6
         Resource
-        (Decode.maybe
-            (Decode.oneOf
-                [ Decode.at [ "rsc", "title", "trans", "en" ] Decode.string
-                , Decode.at [ "rsc", "title", "trans", "nl" ] Decode.string
-                ]
-            )
+        (maybeOneOf
+            [ D.at [ "rsc", "title", "trans", "en" ] D.string
+            , D.at [ "rsc", "title", "trans", "nl" ] D.string
+            ]
         )
-        (Decode.at [ "id" ] Decode.int)
-        (Decode.maybe (Decode.at [ "preview_url" ] Decode.string))
-        (Decode.at [ "rsc", "category" ] Decode.string |> Decode.map List.singleton)
-        (Decode.maybe
-            (Decode.oneOf
-                [ Decode.at [ "rsc", "summary", "trans", "en" ] Decode.string
-                , Decode.at [ "rsc", "summary", "trans", "nl" ] Decode.string
-                ]
-            )
+        (D.field "id" D.int)
+        (D.field "preview_url" D.string |> D.maybe)
+        (D.at [ "rsc", "category" ] D.string |> D.map List.singleton)
+        (maybeOneOf
+            [ D.at [ "rsc", "summary", "trans", "en" ] D.string
+            , D.at [ "rsc", "summary", "trans", "nl" ] D.string
+            ]
         )
-        (Decode.at [ "rsc", "created" ] Decode.string
-            |> Decode.map (Date.fromString >> Result.toMaybe)
+        (D.at [ "rsc", "created" ] D.string
+            |> D.map (Date.fromString >> Result.toMaybe)
         )
 
 
@@ -413,7 +409,7 @@ onClickPreventDefault urlPath =
         { preventDefault = True
         , stopPropagation = False
         }
-        (Decode.succeed <| NewUrl urlPath)
+        (D.succeed <| NewUrl urlPath)
 
 
 { class } =

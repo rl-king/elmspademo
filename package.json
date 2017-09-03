@@ -1,12 +1,12 @@
 {
-    "name": "gingerexploration",
-    "description": "gingerexploration",
+    "name": "elmspademo",
+    "description": "elmspademo",
     "version": "0.0.1",
     "license": "MIT",
     "author": "Ruben Lie King",
     "repository": {
         "type": "git",
-        "url": "https://gitub.com/rl-king/gingerexploration"
+        "url": "https://gitub.com/rl-king/elmspademo"
     },
     "scripts": {
         "start": "webpack-dev-server --hot --inline",

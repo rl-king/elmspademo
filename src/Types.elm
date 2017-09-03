@@ -1,9 +1,9 @@
 module Types exposing (..)
 
-import Date exposing (..)
-import Http exposing (..)
-import Navigation exposing (..)
-import Set exposing (..)
+import Date
+import Http
+import Navigation
+import Set
 
 
 --TYPE ALIASES
@@ -14,7 +14,7 @@ type alias Model =
     , searchQuery : String
     , searchResults : RemoteData (List Resource)
     , currentPage : RemoteData Resource
-    , selectedCategories : Set String
+    , selectedCategories : Set.Set String
     }
 
 
@@ -32,7 +32,7 @@ type alias Resource =
     , imageUrl : Maybe String
     , category : List String
     , summary : Maybe String
-    , created : Maybe Date
+    , created : Maybe Date.Date
     }
 
 
@@ -42,7 +42,7 @@ type alias Resource =
 
 type Msg
     = NewUrl String
-    | UrlChange Location
+    | UrlChange Navigation.Location
     | EnterQuery String
     | GotSearchResults (Result Http.Error (List Resource))
     | GotPage (Result Http.Error Resource)
@@ -63,16 +63,6 @@ type RemoteData a
     | Success a
 
 
-type Category
-    = Product
-    | Media
-    | Image
-    | Text
-    | WindowImage
-    | Article
-    | Other
-
-
 type CssClasses
     = PageView
     | SearchView
@@ -81,3 +71,4 @@ type CssClasses
     | LoadingView
     | NotificationView
     | CategoryList
+    |SiteLogo
