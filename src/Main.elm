@@ -1,6 +1,7 @@
 port module Main exposing (..)
 
-import Date exposing (fromString)
+import Date exposing (..)
+import Date.Extra exposing (..)
 import Html exposing (..)
 import Html.Attributes as Attr exposing (..)
 import Html.CssHelpers exposing (withNamespace)
@@ -203,13 +204,23 @@ viewPage { currentPage } =
 
 
 viewPageContent : Resource -> Html Msg
-viewPageContent { title, id, imageUrl, category, summary } =
+viewPageContent { title, id, imageUrl, category, summary, created } =
     section [ class [ PageView ] ]
         [ img [ src (Maybe.withDefault "" imageUrl) ] []
         , h2 [] [ maybeText "No title" title ]
-        , small [] []
+        , time [] [ text (viewDate created) ]
         , p [] [ maybeText "" summary ]
         ]
+
+
+viewDate : Maybe Date -> String
+viewDate date =
+    case date of
+        Nothing ->
+            ""
+
+        Just x ->
+            Date.Extra.toFormattedString "EEEE, MMMM d, y 'at' h:mm a" x
 
 
 handleViewState : RemoteData a -> (a -> Html Msg) -> Html Msg
@@ -301,7 +312,7 @@ searchResultDecoder =
             )
         )
         (Decode.at [ "id" ] Decode.int)
-        (Decode.maybe <| Decode.at [ "preview_url" ] Decode.string)
+        (Decode.maybe (Decode.at [ "preview_url" ] Decode.string))
         (Decode.at [ "category" ] (Decode.list Decode.string)
             |> Decode.map toCategoryType
         )
@@ -327,7 +338,7 @@ pageDecoder =
             )
         )
         (Decode.at [ "id" ] Decode.int)
-        (Decode.maybe <| Decode.at [ "preview_url" ] Decode.string)
+        (Decode.maybe (Decode.at [ "preview_url" ] Decode.string))
         (Decode.at [ "rsc", "category" ] Decode.string
             |> Decode.map (toCategoryType << List.singleton)
         )
@@ -345,6 +356,11 @@ pageDecoder =
 
 
 --HELPER FUNCTIONS
+
+
+(=>) : a -> b -> ( a, b )
+(=>) =
+    (,)
 
 
 maybeText : String -> Maybe String -> Html Msg
