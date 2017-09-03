@@ -16,7 +16,7 @@ import Types exposing (..)
 import UrlParser as Url exposing ((</>), (<?>), map, oneOf, s, top)
 
 
-port htmlTitle : String -> Cmd msg
+port titlePort : String -> Cmd msg
 
 
 main : Program Never Model Msg
@@ -59,7 +59,7 @@ onUrlChange results route =
     in
     case route of
         Search (Just query) ->
-            UrlChangeData query Loading NotAsked [ requestSearchResults query, htmlTitle query ]
+            UrlChangeData query Loading NotAsked [ requestSearchResults query, titlePort query ]
 
         Page id ->
             UrlChangeData "" NotAsked (getCached id) [ requestPage id ]
@@ -114,7 +114,7 @@ update msg model =
 
         GotPage (Ok xs) ->
             { model | currentPage = Success xs }
-                ! [ htmlTitle (Maybe.withDefault "No-title" (.title xs)) ]
+                ! [ titlePort (Maybe.withDefault "No-title" (.title xs)) ]
 
         GotPage (Err x) ->
             { model | currentPage = Failure x } ! []
@@ -197,13 +197,12 @@ viewSearch model =
 
 
 viewSearchList : Set String -> List Resource -> Html Msg
-viewSearchList filter list =
+viewSearchList filter results =
     let
-        filteredList =
-            list
-                |> List.filter (\x -> List.isEmpty (List.filter (flip Set.member filter) x.category))
+        hasCategory =
+            List.isEmpty << List.filter (flip Set.member filter) << .category
     in
-    case filteredList of
+    case List.filter hasCategory results of
         [] ->
             div [ class [ NotificationView ] ] [ text "No results" ]
 
@@ -268,11 +267,11 @@ handleViewState remoteData succesView =
         Failure _ ->
             notificationView "Requested page is currently unavailable."
 
-        Updating a ->
-            succesView a
+        Updating x ->
+            succesView x
 
-        Success a ->
-            succesView a
+        Success x ->
+            succesView x
 
 
 notificationView : String -> Html Msg
