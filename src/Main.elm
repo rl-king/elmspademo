@@ -2,6 +2,7 @@ port module Main exposing (..)
 
 import Date exposing (..)
 import Date.Extra exposing (toFormattedString)
+import Dict exposing (..)
 import Html exposing (..)
 import Html.Attributes as Attr exposing (..)
 import Html.CssHelpers exposing (withNamespace)
@@ -169,26 +170,29 @@ viewHeader { searchQuery, selectedCategories, searchResults } =
 viewHeaderCategory : RemoteData (List Resource) -> Set String -> Html Msg
 viewHeaderCategory results filter =
     let
-        allCats =
+        resultCategories =
             List.concatMap .category (remoteWithDefault [] results)
 
-        count x =
-            List.filter ((==) x) allCats
-                |> List.length
+        updateCount x xs =
+            if Dict.member x xs then
+                Dict.update x (Maybe.map ((+) 1)) xs
+            else
+                Dict.insert x 1 xs
 
-        -- qwe =
-        -- List.foldl (\acc x -> ( x, count x )) [] allCats
+        categoriesWithCount =
+            List.foldl updateCount Dict.empty resultCategories
+                |> Dict.toList
     in
-    ul [ class [ CategoryList ] ] (List.map (categoryItem filter) (Set.toList <| Set.fromList allCats))
+    ul [ class [ CategoryList ] ] (List.map (categoryItem filter) categoriesWithCount)
 
 
-categoryItem : Set String -> String -> Html Msg
-categoryItem filter x =
+categoryItem : Set String -> ( String, Int ) -> Html Msg
+categoryItem filter ( cat, count ) =
     li
-        [ onClick (SetCategory x)
-        , classList [ ( "selected", Set.member x filter ) ]
+        [ onClick (SetCategory cat)
+        , classList [ ( "selected", Set.member cat filter ) ]
         ]
-        [ text x ]
+        [ text (cat ++ " " ++ toString count) ]
 
 
 viewSearch : Model -> Html Msg
@@ -199,10 +203,16 @@ viewSearch model =
 viewSearchList : Set String -> List Resource -> Html Msg
 viewSearchList filter results =
     let
+        filteredResults =
+            if Set.isEmpty filter then
+                results
+            else
+                List.filter hasCategory results
+
         hasCategory =
-            List.isEmpty << List.filter (flip Set.member filter) << .category
+            not << List.isEmpty << List.filter (flip Set.member filter) << .category
     in
-    case List.filter hasCategory results of
+    case filteredResults of
         [] ->
             div [ class [ NotificationView ] ] [ text "No results" ]
 
