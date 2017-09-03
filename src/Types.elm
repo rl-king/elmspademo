@@ -1,5 +1,6 @@
 module Types exposing (..)
 
+import Date exposing (..)
 import Http exposing (..)
 import Navigation exposing (..)
 
@@ -30,6 +31,7 @@ type alias Resource =
     , imageUrl : Maybe String
     , category : List Category
     , summary : Maybe String
+    , created : Maybe Date
     }
 
 

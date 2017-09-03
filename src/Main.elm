@@ -1,16 +1,17 @@
 port module Main exposing (..)
 
+import Date exposing (fromString)
 import Html exposing (..)
 import Html.Attributes as Attr exposing (..)
 import Html.CssHelpers exposing (withNamespace)
 import Html.Events exposing (onClick, onInput, onSubmit, onWithOptions)
-import Html.Lazy as Lazy
-import Http
+import Html.Lazy as Lazy exposing (lazy, lazy2)
+import Http exposing (Error, get, send)
 import Icons as Icon
 import Json.Decode as Decode exposing (..)
 import Navigation exposing (Location)
 import Types exposing (..)
-import UrlParser as Url exposing (..)
+import UrlParser as Url exposing ((</>), (<?>), map, oneOf, s, top)
 
 
 port htmlTitle : String -> Cmd msg
@@ -151,7 +152,7 @@ viewHeader { searchQuery, activeCategory, searchResults } =
         [ div [ class [ "site-logo" ], onClick (NewUrl "/") ] [ Icon.logo ]
         , Html.form [ onSubmit (NewUrl ("/search/?q=" ++ searchQuery)) ]
             [ input [ onInput EnterQuery, Attr.value searchQuery, placeholder "Search" ] []
-            , button [ onClick (NewUrl ("/search/?q=" ++ searchQuery)) ] [ Icon.search ]
+            , button [ onClickPreventDefault ("/search/?q=" ++ searchQuery) ] [ Icon.search ]
             ]
         , ul [ class [ CategoryList ] ]
             (List.map viewHeaderCategory
@@ -290,38 +291,56 @@ searchResultsDecoder =
 
 searchResultDecoder : Decode.Decoder Resource
 searchResultDecoder =
-    Decode.map5
+    Decode.map6
         Resource
-        (Decode.maybe <|
-            Decode.oneOf
+        (Decode.maybe
+            (Decode.oneOf
                 [ Decode.at [ "title", "trans", "en" ] Decode.string
                 , Decode.at [ "title", "trans", "nl" ] Decode.string
                 ]
+            )
         )
         (Decode.at [ "id" ] Decode.int)
         (Decode.maybe <| Decode.at [ "preview_url" ] Decode.string)
         (Decode.at [ "category" ] (Decode.list Decode.string)
             |> Decode.map toCategoryType
         )
-        (Decode.maybe <| Decode.at [ "rsc", "summary", "trans", "nl" ] Decode.string)
+        (Decode.maybe
+            (Decode.oneOf
+                [ Decode.at [ "summary", "trans", "en" ] Decode.string
+                , Decode.at [ "summary", "trans", "nl" ] Decode.string
+                ]
+            )
+        )
+        (Decode.succeed Nothing)
 
 
 pageDecoder : Decode.Decoder Resource
 pageDecoder =
-    Decode.map5
+    Decode.map6
         Resource
-        (Decode.maybe <|
-            Decode.oneOf
+        (Decode.maybe
+            (Decode.oneOf
                 [ Decode.at [ "rsc", "title", "trans", "en" ] Decode.string
                 , Decode.at [ "rsc", "title", "trans", "nl" ] Decode.string
                 ]
+            )
         )
         (Decode.at [ "id" ] Decode.int)
         (Decode.maybe <| Decode.at [ "preview_url" ] Decode.string)
         (Decode.at [ "rsc", "category" ] Decode.string
             |> Decode.map (toCategoryType << List.singleton)
         )
-        (Decode.succeed Nothing)
+        (Decode.maybe
+            (Decode.oneOf
+                [ Decode.at [ "rsc", "summary", "trans", "en" ] Decode.string
+                , Decode.at [ "rsc", "summary", "trans", "nl" ] Decode.string
+                ]
+            )
+        )
+        (Decode.at [ "rsc", "created" ] Decode.string
+            |> Decode.map (Date.fromString >> Result.toMaybe)
+        )
 
 
 

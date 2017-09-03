@@ -1,36 +1,54 @@
 <!DOCTYPE html>
 <html>
 
-    <head>
-        <title>Elm SPA Demo</title>
-        <meta name="viewport" content="width=device-width, minimum-scale=1, initial-scale=1, user-scalable=yes">
-        <style>
-            .loader {
-                position: fixed;
-                top: 40%;
-                left: calc(50% - 36px)
+<head>
+    <title>Elm SPA Demo</title>
+    <meta name="viewport" content="width=device-width, minimum-scale=1, initial-scale=1, user-scalable=yes">
+    <style>
+        .loader {
+            position: fixed;
+            top: 40%;
+            left: calc(50% - 36px)
+        }
+
+        .spinner {
+            width: 36px;
+            height: 36px;
+            border: 2px solid rgb(243, 243, 243);
+            border-radius: 50%;
+            border-top-color: #CCC;
+            animation: spin .5s linear infinite;
+            margin: 6px;
+            display: inline-block;
+        }
+
+        @keyframes fadeIn {
+            0% {
+                opacity: 0;
             }
 
-            .spinner {
-                width: 36px;
-                height: 36px;
-                border: 2px solid rgb(243, 243, 243);
-                border-radius: 50%;
-                border-top-color: #CCC;
-                animation: spin .5s linear infinite;
-                margin: 6px;
-                display: inline-block;
+            100% {
+                opacity: 1;
             }
+        }
 
-            @keyframes spin {
-                to { transform: rotate(360deg); }
+        .fadein {
+            animation: fadeIn .5s ease;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
             }
+        }
     </style>
-    </head>
+</head>
 
-    <body>
-        <div class="loader"><div class="spinner"></div></div>
-         <div id="app"></div> 
-    </body>
+<body>
+    <div class="loader">
+        <div class="spinner"></div>
+    </div>
+    <div id="app"></div>
+</body>
 
 </html>
