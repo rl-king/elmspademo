@@ -1,5 +1,6 @@
 module Types exposing (..)
 
+import Animation
 import Date
 import Http
 import Navigation
@@ -15,6 +16,7 @@ type alias Model =
     , searchResults : RemoteData (List Resource)
     , currentPage : RemoteData Resource
     , selectedCategories : Set.Set String
+    , animation : Animation.State
     }
 
 
@@ -47,6 +49,7 @@ type Msg
     | GotSearchResults (Result Http.Error (List Resource))
     | GotPage (Result Http.Error Resource)
     | SetCategory String
+    | Animate Animation.Msg
 
 
 type Route

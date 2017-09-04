@@ -1,5 +1,6 @@
 port module Main exposing (..)
 
+import Animation exposing (px)
 import Date exposing (..)
 import Date.Extra exposing (toFormattedString)
 import Dict exposing (Dict, insert, member, update)
@@ -26,8 +27,13 @@ main =
         { init = init
         , view = view
         , update = update
-        , subscriptions = \_ -> Sub.none
+        , subscriptions = subscriptions
         }
+
+
+subscriptions : Model -> Sub Msg
+subscriptions model =
+    Animation.subscription Animate [ model.animation ]
 
 
 init : Navigation.Location -> ( Model, Cmd Msg )
@@ -44,8 +50,37 @@ init location =
     , searchResults = searchResults
     , currentPage = currentPage
     , selectedCategories = Set.empty
+    , animation = pageAnimation
     }
         ! cmds
+
+
+pageAnimation : Animation.State
+pageAnimation =
+    Animation.interrupt
+        [ Animation.set
+            [ Animation.opacity 0
+            , Animation.translate (px 0) (px 100)
+            ]
+        , Animation.toWithEach
+            [ ( Animation.spring
+                    { stiffness = 400
+                    , damping = 50
+                    }
+              , Animation.opacity 1
+              )
+            , ( Animation.spring
+                    { stiffness = 80
+                    , damping = 8
+                    }
+              , Animation.translate (px 0) (px 0)
+              )
+            ]
+        ]
+        (Animation.style
+            [ Animation.opacity 0
+            ]
+        )
 
 
 onUrlChange : RemoteData (List Resource) -> Route -> UrlChangeData a Resource
@@ -91,6 +126,7 @@ update msg model =
                 | route = route
                 , searchResults = searchResults
                 , currentPage = currentPage
+                , animation = pageAnimation
             }
                 ! cmds
 
@@ -107,7 +143,10 @@ update msg model =
                         ys ->
                             List.take 25 ys
             in
-            { model | searchResults = Success results, selectedCategories = Set.empty }
+            { model
+                | searchResults = Success results
+                , selectedCategories = Set.empty
+            }
                 ! []
 
         GotSearchResults (Err x) ->
@@ -129,6 +168,9 @@ update msg model =
                         Set.insert x model.selectedCategories
             in
             { model | selectedCategories = newSelection } ! []
+
+        Animate animMsg ->
+            { model | animation = Animation.update animMsg model.animation } ! []
 
 
 
@@ -243,13 +285,16 @@ viewSearchItem { title, id, imageUrl, category } =
 
 
 viewPage : Model -> Html Msg
-viewPage { currentPage } =
-    handleViewState currentPage viewPageContent
+viewPage { currentPage, animation } =
+    handleViewState currentPage (viewPageContent animation)
 
 
-viewPageContent : Resource -> Html Msg
-viewPageContent { title, id, imageUrl, category, summary, created } =
-    section [ class [ PageView ] ]
+viewPageContent : Animation.State -> Resource -> Html Msg
+viewPageContent animation { title, id, imageUrl, category, summary, created } =
+    section
+        (Animation.render animation
+            ++ [ class [ PageView ] ]
+        )
         [ img [ src (Maybe.withDefault "" imageUrl) ] []
         , h2 [] [ maybeText "No title" title ]
         , viewDate created
