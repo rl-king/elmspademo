@@ -1,5 +1,5 @@
 # Elm sample app [WIP]
-A simple Elm single page app with the goal of highlighting how the language helps you create fun, realiable and maintainable apps. 
+A small single page app written in Elm, highlighting how the language helps you create fun, reliable and maintainable apps. 
 
 ## Descriptive 
 ```elm
