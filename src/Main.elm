@@ -144,7 +144,7 @@ view model =
                     viewSearch model
 
                 Search _ ->
-                    viewSearch model
+                    Lazy.lazy viewSearch model
 
                 Page _ ->
                     Lazy.lazy viewPage model
@@ -160,15 +160,21 @@ viewHeader { searchQuery, selectedCategories, searchResults } =
     header []
         [ div [ class [ SiteLogo ], onClick (NewUrl "/") ] [ Icon.logo ]
         , Html.form [ onSubmit (NewUrl ("/search/?q=" ++ searchQuery)) ]
-            [ input [ onInput EnterQuery, Attr.value searchQuery, placeholder "Search" ] []
-            , button [ onClickPreventDefault ("/search/?q=" ++ searchQuery) ] [ Icon.search ]
+            [ input
+                [ autofocus True
+                , onInput EnterQuery
+                , Attr.value searchQuery
+                , placeholder "Search"
+                ]
+                []
+            , button [] [ Icon.search ]
             ]
-        , viewHeaderCategory searchResults selectedCategories
+        , viewCategory searchResults selectedCategories
         ]
 
 
-viewHeaderCategory : RemoteData (List Resource) -> Set String -> Html Msg
-viewHeaderCategory results filter =
+viewCategory : RemoteData (List Resource) -> Set String -> Html Msg
+viewCategory results filter =
     let
         resultCategories =
             List.concatMap .category (remoteWithDefault [] results)
@@ -183,11 +189,11 @@ viewHeaderCategory results filter =
             List.foldl updateCount Dict.empty resultCategories
                 |> Dict.toList
     in
-    ul [ class [ CategoryList ] ] (List.map (categoryItem filter) categoriesWithCount)
+    ul [ class [ CategoryList ] ] (List.map (viewCategoryItem filter) categoriesWithCount)
 
 
-categoryItem : Set String -> ( String, Int ) -> Html Msg
-categoryItem filter ( cat, count ) =
+viewCategoryItem : Set String -> ( String, Int ) -> Html Msg
+viewCategoryItem filter ( cat, count ) =
     li
         [ onClick (SetCategory cat)
         , classList [ ( "selected", Set.member cat filter ) ]
@@ -214,16 +220,16 @@ viewSearchList filter results =
     in
     case filteredResults of
         [] ->
-            notificationView "No results"
+            viewNotification "No results"
 
         xs ->
             section [ class [ SearchView ] ]
-                [ ul [] (List.map viewSearchResult xs)
+                [ ul [] (List.map viewSearchItem xs)
                 ]
 
 
-viewSearchResult : Resource -> Html Msg
-viewSearchResult { title, id, imageUrl, category } =
+viewSearchItem : Resource -> Html Msg
+viewSearchItem { title, id, imageUrl, category } =
     let
         url =
             "/page/" ++ toString id
@@ -269,13 +275,13 @@ handleViewState : RemoteData a -> (a -> Html Msg) -> Html Msg
 handleViewState remoteData succesView =
     case remoteData of
         NotAsked ->
-            notificationView "Welcome, please enter a search query above"
+            viewNotification "Welcome, please enter a search query above"
 
         Loading ->
             viewLoading
 
         Failure _ ->
-            notificationView "Requested page is currently unavailable"
+            viewNotification "Requested page is currently unavailable"
 
         Updating x ->
             succesView x
@@ -284,8 +290,8 @@ handleViewState remoteData succesView =
             succesView x
 
 
-notificationView : String -> Html Msg
-notificationView x =
+viewNotification : String -> Html Msg
+viewNotification x =
     section [ class [ NotificationView ] ] [ text x ]
 
 

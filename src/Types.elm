@@ -71,4 +71,4 @@ type CssClasses
     | LoadingView
     | NotificationView
     | CategoryList
-    |SiteLogo
+    | SiteLogo
