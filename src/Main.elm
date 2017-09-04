@@ -272,7 +272,7 @@ viewDate date =
 
 
 handleViewState : RemoteData a -> (a -> Html Msg) -> Html Msg
-handleViewState remoteData succesView =
+handleViewState remoteData successView =
     case remoteData of
         NotAsked ->
             viewNotification "Welcome, please enter a search query above"
@@ -284,10 +284,10 @@ handleViewState remoteData succesView =
             viewNotification "Requested page is currently unavailable"
 
         Updating x ->
-            succesView x
+            successView x
 
         Success x ->
-            succesView x
+            successView x
 
 
 viewNotification : String -> Html Msg
